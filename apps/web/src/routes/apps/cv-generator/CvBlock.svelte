@@ -79,16 +79,16 @@
 {/if}
 
 <style>
-  :global(.cv-paper) { color: #172033; font-family: Arial, Helvetica, sans-serif; }
+  :global(.cv-paper) { color: #172033; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
   section, .identity { break-inside: avoid; }
   h1, h2, h3, p { margin: 0; }
   h1 { color: var(--accent); font-size: var(--name-size); line-height: 1; letter-spacing: -0.035em; }
-  .headline { margin-top: 2.2mm; color: #475569; font-size: 10.5pt; }
+  .headline { margin-top: 2.2mm; color: #475569; font-size: 11pt; }
   .identity { display: flex; align-items: flex-start; justify-content: space-between; gap: 10mm; padding-bottom: var(--section-gap); border-bottom: 0.55mm solid var(--accent); }
-  address { display: flex; max-width: 72mm; flex-wrap: wrap; justify-content: flex-end; gap: 1.4mm 3.2mm; color: #475569; font-size: 8.4pt; font-style: normal; line-height: 1.35; text-align: right; }
+  address { display: flex; max-width: 72mm; flex-wrap: wrap; justify-content: flex-end; gap: 1.4mm 3.2mm; color: #475569; font-size: 8.7pt; font-style: normal; line-height: 1.35; text-align: right; }
   a { color: inherit; text-decoration: none; }
   h2 { margin-bottom: var(--heading-gap); color: var(--accent); font-size: 8.4pt; font-weight: 800; letter-spacing: 0.13em; text-transform: uppercase; }
-  h3 { font-size: 10.2pt; line-height: 1.25; }
+  h3 { font-size: 10.6pt; line-height: 1.25; }
   .prose, li, .entry-heading p, .meta, .project-title a { font-size: var(--body-size); line-height: var(--line-height); }
   .prose { color: #334155; white-space: pre-line; }
   .entry-heading, .project-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 8mm; }

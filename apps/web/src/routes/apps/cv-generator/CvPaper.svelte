@@ -41,9 +41,9 @@
 
 <style>
   .cv-paper {
-    --body-size: 9pt;
-    --line-height: 1.42;
-    --name-size: 25pt;
+    --body-size: 9.4pt;
+    --line-height: 1.45;
+    --name-size: 26pt;
     --block-gap: 5.2mm;
     --section-gap: 4.5mm;
     --heading-gap: 2.2mm;
@@ -55,8 +55,8 @@
     box-shadow: 0 22px 70px rgb(0 0 0 / 0.3);
     print-color-adjust: exact;
   }
-  .cv-paper[data-density='relaxed'] { --body-size: 9.4pt; --line-height: 1.5; --block-gap: 6.4mm; --section-gap: 5.3mm; }
-  .cv-paper[data-density='compact'] { --body-size: 8.4pt; --line-height: 1.34; --block-gap: 4mm; --section-gap: 3.6mm; --heading-gap: 1.7mm; }
+  .cv-paper[data-density='relaxed'] { --body-size: 10pt; --line-height: 1.52; --block-gap: 6.4mm; --section-gap: 5.3mm; }
+  .cv-paper[data-density='compact'] { --body-size: 8.7pt; --line-height: 1.36; --block-gap: 4mm; --section-gap: 3.6mm; --heading-gap: 1.7mm; }
   .page-content { display: flex; height: 100%; flex-direction: column; gap: var(--block-gap); padding: var(--paper-padding); }
   .overflow::after { position: absolute; inset: 2mm; border: 1mm dashed #e11d48; content: ''; pointer-events: none; }
   @media print {
