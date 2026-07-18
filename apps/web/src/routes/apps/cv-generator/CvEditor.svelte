@@ -7,7 +7,7 @@
   let { cv, onChange }: { cv: CvDocument; onChange: (document: CvDocument) => void } = $props();
 
   function edit(change: (draft: CvDocument) => void): void {
-    const draft = structuredClone(cv);
+    const draft = structuredClone($state.snapshot(cv));
     change(draft);
     onChange(draft);
   }
