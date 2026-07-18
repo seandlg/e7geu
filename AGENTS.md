@@ -12,6 +12,8 @@
 
 - A mini-app route is the product seam: it owns page UI and lifecycle and imports deep modules with small interfaces.
 - Browser modules hide permission and event-subscription implementation and return cleanup functions. UI code must clean up camera, geolocation, animation, and event listeners when unmounted.
+- When two mini-apps repeat the same hardware lifecycle, deepen it into a shared browser module rather than duplicating it. In particular, `$lib/browser/camera.ts` should own camera permission, stream attachment, start/restart/stop cleanup, device enumeration and selection, and capability inspection for the QR scanner and color inspector.
+- Keep feature policy outside that shared camera interface: QR detection cadence and lens filtering belong to the scanner, while color sampling, freezing, and pipette behavior belong to the color inspector. Share the device lifecycle, not incidental feature behavior.
 - Pure calculations accept values and return results. Do not reach for browser globals from domain modules; this keeps them directly testable through their public interface.
 - Add a package under `packages/*` only after code is shared across deployables or has a coherent independent interface. Do not create pass-through packages or hypothetical adapters.
 - The app catalog is the single source of truth for launcher labels, descriptions, routes, colors, and capability notes. Adding a tool should usually require one catalog entry and one route.
