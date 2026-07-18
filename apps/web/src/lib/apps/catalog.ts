@@ -1,4 +1,4 @@
-export type AppIcon = 'qr' | 'speed' | 'sound' | 'color' | 'word';
+export type AppIcon = 'qr' | 'speed' | 'sound' | 'color' | 'word' | 'break';
 
 export type ToolboxApp = {
   name: string;
@@ -49,5 +49,13 @@ export const toolboxApps: readonly ToolboxApp[] = [
     icon: 'word',
     accent: '#fbbf24',
     capability: 'Party game',
+  },
+  {
+    name: 'Break Timer',
+    description: 'Repeat gentle reminders to look away, stretch, or reset.',
+    href: '/apps/break-timer',
+    icon: 'break',
+    accent: '#22d3ee',
+    capability: 'Timer',
   },
 ] as const;

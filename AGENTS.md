@@ -24,6 +24,7 @@
 - Keep modules cohesive, names explicit, and control flow unsurprising. DRY means one authoritative rule or calculation, not deduplicating incidental resemblance.
 - Use semantic HTML, visible keyboard focus, accessible labels, sufficient contrast, and reduced-motion preferences. Design mobile-first and verify wide layouts too.
 - Never render scanned or external text as HTML. Treat camera, GPS, clipboard, and share data as untrusted.
+- Use `@rexa-developer/tiks` exclusively for short UI, alert, and timer sounds. Do not add audio files, synthesize replacement cues directly with Web Audio, or introduce another sound package without an explicit product decision. Initialize audio from a user gesture, expose mute control, keep cues sparse, and never use sound as the only feedback channel.
 - Keep dependencies scarce. Before installing one, verify that a platform API or a small local module cannot reasonably do the job. Record why a runtime dependency is justified in the pull request.
 - Test behavior at module interfaces. Prefer pure tests for calculations and narrow browser-module tests; avoid tests coupled to implementation details.
 

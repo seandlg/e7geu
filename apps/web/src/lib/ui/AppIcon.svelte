@@ -26,10 +26,16 @@
     <path d="m25 12 11 11M9 39h31" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
     <path d="m14 28 10 10" stroke="currentColor" stroke-width="3.2"/>
   </svg>
-{:else}
+{:else if icon === 'word'}
   <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
     <rect x="7" y="8" width="34" height="32" rx="9" stroke="currentColor" stroke-width="3"/>
     <path d="m13 17 4.5 14L24 20l6.5 11L35 17" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M11 12h4M33 36h4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+  </svg>
+{:else}
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
+    <circle cx="24" cy="26" r="15" stroke="currentColor" stroke-width="3.2"/>
+    <path d="M24 26V16m0 10 7 4M18 7h12M24 7v4" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="m36 14 3-3" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
   </svg>
 {/if}

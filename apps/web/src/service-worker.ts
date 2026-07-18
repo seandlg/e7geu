@@ -42,3 +42,16 @@ worker.addEventListener('fetch', (event) => {
     }),
   );
 });
+
+worker.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    worker.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
+      const timerClient = clients.find(
+        (client) => new URL(client.url).pathname === '/apps/break-timer',
+      );
+      if (timerClient && 'focus' in timerClient) return timerClient.focus();
+      return worker.clients.openWindow('/apps/break-timer');
+    }),
+  );
+});
