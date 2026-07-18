@@ -1,4 +1,4 @@
-export type AppIcon = 'qr' | 'speed' | 'sound' | 'color';
+export type AppIcon = 'qr' | 'speed' | 'sound' | 'color' | 'word';
 
 export type ToolboxApp = {
   name: string;
@@ -41,5 +41,13 @@ export const toolboxApps: readonly ToolboxApp[] = [
     icon: 'color',
     accent: '#fb7185',
     capability: 'Camera',
+  },
+  {
+    name: 'Wordguessr',
+    description: 'Race your friends through fast word challenges.',
+    href: '/apps/wordguessr',
+    icon: 'word',
+    accent: '#fbbf24',
+    capability: 'Party game',
   },
 ] as const;

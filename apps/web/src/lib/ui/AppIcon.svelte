@@ -20,10 +20,16 @@
   <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
     <path d="M8 27v-6M15 33V15M22 38V10M29 34V14M36 30V18M43 27v-6" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
   </svg>
-{:else}
+{:else if icon === 'color'}
   <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
     <path d="m29 8 11 11-19 19H10V27L29 8Z" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"/>
     <path d="m25 12 11 11M9 39h31" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
     <path d="m14 28 10 10" stroke="currentColor" stroke-width="3.2"/>
+  </svg>
+{:else}
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
+    <rect x="7" y="8" width="34" height="32" rx="9" stroke="currentColor" stroke-width="3"/>
+    <path d="m13 17 4.5 14L24 20l6.5 11L35 17" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M11 12h4M33 36h4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
   </svg>
 {/if}
