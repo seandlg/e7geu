@@ -6,8 +6,18 @@
     startColorCamera,
     type ColorCameraSession,
   } from '$lib/browser/color-inspector';
-  import { contrastRatio, rgbToHex, rgbToHsl, type RgbColor } from '$lib/domain/color';
+  import type { CameraDevice } from '$lib/browser/camera';
+  import {
+    clientPointToPixel,
+    contrastRatio,
+    nudgePixel,
+    rgbToHex,
+    rgbToHsl,
+    type PixelPoint,
+    type RgbColor,
+  } from '$lib/domain/color';
   import AppHeader from '$lib/ui/AppHeader.svelte';
+  import PixelLoupe from './PixelLoupe.svelte';
 
   type SavedColor = { hex: string; color: RgbColor };
 
@@ -23,6 +33,11 @@
   let color: RgbColor | null = $state(null);
   let pickerX = $state(50);
   let pickerY = $state(50);
+  let pixel: PixelPoint = $state({ x: 0, y: 0 });
+  let loupeVisible = $state(false);
+  let cameras: CameraDevice[] = $state([]);
+  let selectedCamera = $state('');
+  let cameraChanging = $state(false);
   let error = $state('');
   let copied = $state(false);
   let history: SavedColor[] = $state([]);
@@ -44,6 +59,8 @@
         color = nextColor;
         mode = 'live';
       });
+      cameras = await session.cameras();
+      selectedCamera = session.activeDeviceId() ?? cameras[0]?.id ?? '';
     } catch (cause) {
       mode = 'error';
       error = cameraError(cause);
@@ -52,11 +69,10 @@
 
   function freeze(): void {
     if (!session || !canvas) return;
-    color = session.capture(canvas) ?? color;
+    session.capture(canvas);
     session.stop();
     session = null;
-    pickerX = 50;
-    pickerY = 50;
+    selectPixel({ x: Math.floor(canvas.width / 2), y: Math.floor(canvas.height / 2) });
     copied = false;
     mode = 'frozen';
   }
@@ -77,8 +93,7 @@
     try {
       color = await drawImageFile(file, canvas);
       if (!color) throw new Error('Image could not be read');
-      pickerX = 50;
-      pickerY = 50;
+      selectPixel({ x: Math.floor(canvas.width / 2), y: Math.floor(canvas.height / 2) });
       copied = false;
       mode = 'frozen';
     } catch {
@@ -87,17 +102,79 @@
     }
   }
 
+  async function chooseCamera(event: Event): Promise<void> {
+    if (!session) return;
+    const cameraId = (event.currentTarget as HTMLSelectElement).value;
+    selectedCamera = cameraId;
+    cameraChanging = true;
+    error = '';
+    try {
+      await session.setCamera(cameraId);
+      selectedCamera = session.activeDeviceId() ?? cameraId;
+    } catch (cause) {
+      stopCamera();
+      mode = 'error';
+      error = cameraError(cause);
+    } finally {
+      cameraChanging = false;
+    }
+  }
+
   function inspectPoint(event: PointerEvent): void {
     if (!canvas || mode !== 'frozen') return;
     const bounds = canvas.getBoundingClientRect();
-    const x = ((event.clientX - bounds.left) / bounds.width) * canvas.width;
-    const y = ((event.clientY - bounds.top) / bounds.height) * canvas.height;
-    const nextColor = sampleCanvasColor(canvas, x, y);
+    const point = clientPointToPixel(
+      event.clientX,
+      event.clientY,
+      bounds,
+      canvas.width,
+      canvas.height,
+    );
+    if (point) selectPixel(point);
+  }
+
+  function beginInspect(event: PointerEvent): void {
+    const target = event.currentTarget as HTMLCanvasElement;
+    target.setPointerCapture(event.pointerId);
+    target.focus();
+    loupeVisible = true;
+    inspectPoint(event);
+  }
+
+  function moveInspect(event: PointerEvent): void {
+    if ((event.currentTarget as HTMLCanvasElement).hasPointerCapture(event.pointerId)) {
+      inspectPoint(event);
+    }
+  }
+
+  function selectPixel(point: PixelPoint): void {
+    if (!canvas) return;
+    const nextColor = sampleCanvasColor(canvas, point.x, point.y, 0);
     if (!nextColor) return;
+    pixel = point;
     color = nextColor;
-    pickerX = ((event.clientX - bounds.left) / bounds.width) * 100;
-    pickerY = ((event.clientY - bounds.top) / bounds.height) * 100;
+    pickerX = ((point.x + 0.5) / canvas.width) * 100;
+    pickerY = ((point.y + 0.5) / canvas.height) * 100;
     copied = false;
+  }
+
+  function movePixel(deltaX: number, deltaY: number): void {
+    if (!canvas || mode !== 'frozen') return;
+    loupeVisible = true;
+    selectPixel(nudgePixel(pixel, deltaX, deltaY, canvas.width, canvas.height));
+  }
+
+  function handlePickerKey(event: KeyboardEvent): void {
+    const movement: Record<string, [number, number]> = {
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+      ArrowUp: [0, -1],
+      ArrowDown: [0, 1],
+    };
+    const delta = movement[event.key];
+    if (!delta) return;
+    event.preventDefault();
+    movePixel(...delta);
   }
 
   async function copyHex(): Promise<void> {
@@ -178,7 +255,20 @@
   <section class="glass-panel mt-8 overflow-hidden rounded-[2rem]">
     <div class={mode === 'frozen' ? 'relative bg-black' : 'relative aspect-[4/5] min-h-96 bg-black sm:aspect-[4/3]'}>
       <video bind:this={video} class={mode === 'live' || mode === 'starting' ? 'h-full w-full object-cover' : 'hidden'} playsinline muted aria-label="Camera preview"></video>
-      <canvas bind:this={canvas} class={mode === 'frozen' ? 'block h-auto w-full cursor-crosshair touch-none' : 'hidden'} onpointerdown={inspectPoint} aria-label="Frozen image; tap anywhere to inspect its color"></canvas>
+      <canvas
+        bind:this={canvas}
+        class={mode === 'frozen' ? 'focus-ring block h-auto w-full cursor-crosshair touch-none' : 'hidden'}
+        tabindex={mode === 'frozen' ? 0 : undefined}
+        onpointerdown={beginInspect}
+        onpointermove={moveInspect}
+        onkeydown={handlePickerKey}
+        onblur={() => (loupeVisible = false)}
+        aria-label="Frozen image color picker. Drag to inspect, or use arrow keys to move one pixel."
+      ></canvas>
+
+      {#if mode === 'frozen' && canvas && loupeVisible}
+        <PixelLoupe source={canvas} x={pixel.x} y={pixel.y} left={pickerX} top={pickerY} below={pickerY < 30} />
+      {/if}
 
       {#if mode === 'live' || mode === 'frozen'}
         <div class="pointer-events-none absolute h-11 w-11 -translate-x-1/2 -translate-y-1/2 rounded-full border-3 border-white shadow-[0_1px_8px_rgb(0_0_0_/_0.8)]" style:left={`${pickerX}%`} style:top={`${pickerY}%`}>
@@ -206,6 +296,23 @@
 
     <input bind:this={fileInput} class="sr-only" type="file" accept="image/*" onchange={chooseImage} />
 
+    {#if mode === 'live' && cameras.length > 1}
+      <div class="border-t border-white/8 px-4 pt-4 sm:px-5">
+        <label class="block text-xs font-650 tracking-wide text-slate-500 uppercase" for="color-camera">Camera</label>
+        <select
+          id="color-camera"
+          class="focus-ring mt-2 w-full rounded-xl border border-white/12 bg-slate-900 px-3 py-2.5 text-sm text-white"
+          value={selectedCamera}
+          disabled={cameraChanging}
+          onchange={chooseCamera}
+        >
+          {#each cameras as camera, index (camera.id)}
+            <option value={camera.id}>{camera.label || `Camera ${index + 1}`}</option>
+          {/each}
+        </select>
+      </div>
+    {/if}
+
     {#if details && color}
       <div class="p-4 sm:p-5">
         <div class="flex items-center gap-4">
@@ -226,6 +333,21 @@
           <div class="rounded-2xl p-4 text-center font-700 text-white" style:background={details.css}>White · {whiteContrast.toFixed(1)}:1</div>
           <div class="rounded-2xl p-4 text-center font-700 text-black" style:background={details.css}>Black · {blackContrast.toFixed(1)}:1</div>
         </div>
+
+        {#if mode === 'frozen'}
+          <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white/5 p-3">
+            <div>
+              <div class="text-xs font-650 text-slate-300">Fine tune · one pixel</div>
+              <div class="mt-0.5 text-xs tabular-nums text-slate-500">x {pixel.x + 1} · y {pixel.y + 1}</div>
+            </div>
+            <div class="grid grid-cols-3 gap-1" aria-label="Move pipette one pixel">
+              <button class="focus-ring col-start-2 h-9 w-9 cursor-pointer rounded-lg border border-white/10 bg-white/8 text-white" onclick={() => movePixel(0, -1)} aria-label="Move up one pixel">↑</button>
+              <button class="focus-ring row-start-2 h-9 w-9 cursor-pointer rounded-lg border border-white/10 bg-white/8 text-white" onclick={() => movePixel(-1, 0)} aria-label="Move left one pixel">←</button>
+              <button class="focus-ring row-start-2 h-9 w-9 cursor-pointer rounded-lg border border-white/10 bg-white/8 text-white" onclick={() => movePixel(0, 1)} aria-label="Move down one pixel">↓</button>
+              <button class="focus-ring row-start-2 h-9 w-9 cursor-pointer rounded-lg border border-white/10 bg-white/8 text-white" onclick={() => movePixel(1, 0)} aria-label="Move right one pixel">→</button>
+            </div>
+          </div>
+        {/if}
 
         <div class="mt-5 flex flex-wrap justify-center gap-3">
           {#if mode === 'live'}

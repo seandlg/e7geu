@@ -55,7 +55,7 @@
         (message) => (error = message)
       );
       cameras = await camera.cameras();
-      selectedCamera = cameras[0]?.id ?? '';
+      selectedCamera = camera.activeCameraId() ?? cameras[0]?.id ?? '';
       flashAvailable = await camera.hasFlash();
       status = 'scanning';
     } catch (cause) {

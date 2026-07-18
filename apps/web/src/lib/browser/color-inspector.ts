@@ -1,7 +1,11 @@
-import { averagePixels, type RgbColor } from '$lib/domain/color';
+import { drawVideoFrame, fittedDimensions, openCamera, type CameraDevice } from './camera';
+import { averagePixels, type RgbColor } from '../domain/color';
 
 export type ColorCameraSession = {
+  activeDeviceId: () => string | null;
+  cameras: () => Promise<CameraDevice[]>;
   capture: (canvas: HTMLCanvasElement) => RgbColor | null;
+  setCamera: (cameraId: string) => Promise<void>;
   stop: () => void;
 };
 
@@ -12,12 +16,7 @@ export async function startColorCamera(
   video: HTMLVideoElement,
   onColor: (color: RgbColor) => void,
 ): Promise<ColorCameraSession> {
-  if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera API unavailable');
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: { ideal: 'environment' } },
-  });
-  video.srcObject = stream;
-  await video.play();
+  const camera = await openCamera(video);
 
   const sampler = document.createElement('canvas');
   sampler.width = 64;
@@ -45,22 +44,18 @@ export async function startColorCamera(
     if (stopped) return;
     stopped = true;
     if (animationFrame !== null) cancelAnimationFrame(animationFrame);
-    stream.getTracks().forEach((track) => track.stop());
-    video.srcObject = null;
+    camera.stop();
   };
 
   animationFrame = requestAnimationFrame(sample);
   return {
     stop,
+    activeDeviceId: camera.activeDeviceId,
+    cameras: camera.devices,
+    setCamera: camera.start,
     capture: (canvas) => {
-      const dimensions = fittedDimensions(video.videoWidth, video.videoHeight, MAX_CAPTURE_EDGE);
-      if (!dimensions) return null;
-      canvas.width = dimensions.width;
-      canvas.height = dimensions.height;
-      const captureContext = canvas.getContext('2d', { willReadFrequently: true });
-      if (!captureContext) return null;
-      captureContext.drawImage(video, 0, 0, dimensions.width, dimensions.height);
-      return sampleCanvasColor(canvas, dimensions.width / 2, dimensions.height / 2);
+      if (!drawVideoFrame(video, canvas, MAX_CAPTURE_EDGE)) return null;
+      return sampleCanvasColor(canvas, canvas.width / 2, canvas.height / 2);
     },
   };
 }
@@ -97,14 +92,4 @@ export function sampleCanvasColor(
   const right = Math.min(canvas.width, Math.ceil(x + radius + 1));
   const bottom = Math.min(canvas.height, Math.ceil(y + radius + 1));
   return averagePixels(context.getImageData(left, top, right - left, bottom - top).data);
-}
-
-function fittedDimensions(
-  width: number,
-  height: number,
-  maximumEdge: number,
-): { width: number; height: number } | null {
-  if (width <= 0 || height <= 0) return null;
-  const scale = Math.min(1, maximumEdge / Math.max(width, height));
-  return { width: Math.round(width * scale), height: Math.round(height * scale) };
 }

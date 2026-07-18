@@ -13,8 +13,7 @@ describe('safeWebUrl', () => {
 });
 
 describe('filterVideoDevices', () => {
-  const device = (label: string, deviceId: string) =>
-    ({ kind: 'videoinput', label, deviceId }) as MediaDeviceInfo;
+  const device = (label: string, deviceId: string) => ({ label, id: deviceId });
 
   it('keeps primary rear and front cameras while hiding secondary lenses', () => {
     const result = filterVideoDevices([
@@ -22,7 +21,7 @@ describe('filterVideoDevices', () => {
       device('Back Ultra Wide Camera', 'ultra'),
       device('Front Camera', 'front'),
     ]);
-    expect(result.map(({ deviceId }) => deviceId)).toEqual(['back', 'front']);
+    expect(result.map(({ id }) => id)).toEqual(['back', 'front']);
   });
 
   it('keeps all cameras when labels are unavailable', () => {

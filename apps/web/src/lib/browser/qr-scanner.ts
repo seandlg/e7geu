@@ -1,15 +1,15 @@
 import { BarcodeDetectorPolyfill } from '@undecaf/barcode-detector-polyfill';
+import { drawVideoFrame, openCamera, type CameraDevice } from './camera';
 
 type DetectedBarcode = { rawValue: string };
 type Detector = { detect: (source: ImageBitmapSource) => Promise<DetectedBarcode[]> };
 type DetectorConstructor = new (options: { formats: string[] }) => Detector;
-type TorchCapabilities = MediaTrackCapabilities & { torch?: boolean };
-type TorchConstraint = MediaTrackConstraintSet & { torch?: boolean };
 
 export type QrScan = { data: string };
 export type CameraChoice = { id: string; label: string };
 
 export type QrCamera = {
+  activeCameraId: () => string | null;
   stop: () => void;
   start: () => Promise<void>;
   destroy: () => void;
@@ -35,7 +35,7 @@ export async function startQrCamera(
   onDecodeError: (message: string) => void,
 ): Promise<QrCamera> {
   const detector = createDetector();
-  let stream: MediaStream | null = null;
+  const camera = await openCamera(video);
   let frame: number | null = null;
   let scanning = false;
   let selectedDeviceId: string | undefined;
@@ -47,9 +47,7 @@ export async function startQrCamera(
     scanning = false;
     if (frame !== null) cancelAnimationFrame(frame);
     frame = null;
-    stream?.getTracks().forEach((track) => track.stop());
-    stream = null;
-    video.srcObject = null;
+    camera.stop();
     torchOn = false;
   };
 
@@ -76,32 +74,25 @@ export async function startQrCamera(
 
   const start = async (): Promise<void> => {
     if (scanning) return;
-    stop();
-    const videoConstraints: MediaTrackConstraints = selectedDeviceId
-      ? { deviceId: { exact: selectedDeviceId } }
-      : { facingMode: { ideal: 'environment' } };
-    stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
-    video.srcObject = stream;
-    await video.play();
+    await camera.start(selectedDeviceId);
     scanning = true;
     lastValue = '';
     frame = requestAnimationFrame((time) => void scanFrame(time));
   };
 
-  await start();
+  scanning = true;
+  frame = requestAnimationFrame((time) => void scanFrame(time));
 
   return {
     stop,
     start,
     destroy: stop,
+    activeCameraId: camera.activeDeviceId,
     cameras: async () => {
-      const devices = (await navigator.mediaDevices.enumerateDevices()).filter(
-        (device) => device.kind === 'videoinput',
-      );
-      const filtered = filterVideoDevices(devices);
-      const activeDevice = stream?.getVideoTracks()[0]?.getSettings().deviceId;
+      const filtered = filterVideoDevices(await camera.devices());
+      const activeDevice = camera.activeDeviceId();
       if (activeDevice) selectedDeviceId = activeDevice;
-      return filtered.map((device) => ({ id: device.deviceId, label: device.label }));
+      return filtered;
     },
     setCamera: async (cameraId) => {
       selectedDeviceId = cameraId;
@@ -109,14 +100,11 @@ export async function startQrCamera(
       await start();
     },
     hasFlash: async () => {
-      const track = stream?.getVideoTracks()[0];
-      return Boolean((track?.getCapabilities() as TorchCapabilities | undefined)?.torch);
+      return camera.hasTorch();
     },
     toggleFlash: async () => {
-      const track = stream?.getVideoTracks()[0];
-      if (!track) throw new Error('Camera is not active');
       torchOn = !torchOn;
-      await track.applyConstraints({ advanced: [{ torch: torchOn } as TorchConstraint] });
+      await camera.setTorch(torchOn);
     },
   };
 }
@@ -136,17 +124,9 @@ export function captureVideoFrame(
   video: HTMLVideoElement,
   createCanvas: () => HTMLCanvasElement = () => document.createElement('canvas'),
 ): string | null {
-  const { videoWidth: width, videoHeight: height } = video;
-  if (width <= 0 || height <= 0) return null;
-
   const canvas = createCanvas();
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext('2d');
-  if (!context) return null;
-
   try {
-    context.drawImage(video, 0, 0, width, height);
+    if (!drawVideoFrame(video, canvas)) return null;
     return canvas.toDataURL('image/jpeg', 0.86);
   } catch {
     return null;
@@ -162,7 +142,7 @@ export function safeWebUrl(value: string): string | null {
   }
 }
 
-export function filterVideoDevices(devices: readonly MediaDeviceInfo[]): MediaDeviceInfo[] {
+export function filterVideoDevices(devices: readonly CameraDevice[]): CameraDevice[] {
   if (devices.every((device) => !device.label)) return [...devices];
   const filtered = devices.filter((device) => {
     const label = device.label.toLowerCase();

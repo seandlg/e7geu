@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { averagePixels, contrastRatio, rgbToHex, rgbToHsl } from './color';
+import {
+  averagePixels,
+  clientPointToPixel,
+  contrastRatio,
+  nudgePixel,
+  rgbToHex,
+  rgbToHsl,
+} from './color';
 
 describe('color calculations', () => {
   it('formats RGB as uppercase hexadecimal', () => {
@@ -27,5 +34,16 @@ describe('color calculations', () => {
     expect(contrastRatio({ red: 0, green: 0, blue: 0 }, { red: 255, green: 255, blue: 255 })).toBe(
       21,
     );
+  });
+
+  it('maps a displayed point to an exact source pixel', () => {
+    const bounds = { left: 10, top: 20, width: 320, height: 180 };
+    expect(clientPointToPixel(170, 110, bounds, 1920, 1080)).toEqual({ x: 960, y: 540 });
+    expect(clientPointToPixel(-10, 300, bounds, 1920, 1080)).toEqual({ x: 0, y: 1079 });
+  });
+
+  it('nudges a pixel without leaving the image', () => {
+    expect(nudgePixel({ x: 4, y: 5 }, 1, -1, 10, 10)).toEqual({ x: 5, y: 4 });
+    expect(nudgePixel({ x: 0, y: 9 }, -1, 1, 10, 10)).toEqual({ x: 0, y: 9 });
   });
 });

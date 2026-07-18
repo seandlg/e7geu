@@ -1,5 +1,36 @@
 export type RgbColor = { red: number; green: number; blue: number };
 export type HslColor = { hue: number; saturation: number; lightness: number };
+export type PixelPoint = { x: number; y: number };
+export type DisplayBounds = { left: number; top: number; width: number; height: number };
+
+export function clientPointToPixel(
+  clientX: number,
+  clientY: number,
+  bounds: DisplayBounds,
+  imageWidth: number,
+  imageHeight: number,
+): PixelPoint | null {
+  if (bounds.width <= 0 || bounds.height <= 0 || imageWidth <= 0 || imageHeight <= 0) return null;
+  const normalizedX = Math.min(0.999_999, Math.max(0, (clientX - bounds.left) / bounds.width));
+  const normalizedY = Math.min(0.999_999, Math.max(0, (clientY - bounds.top) / bounds.height));
+  return {
+    x: Math.floor(normalizedX * imageWidth),
+    y: Math.floor(normalizedY * imageHeight),
+  };
+}
+
+export function nudgePixel(
+  point: PixelPoint,
+  deltaX: number,
+  deltaY: number,
+  imageWidth: number,
+  imageHeight: number,
+): PixelPoint {
+  return {
+    x: Math.min(imageWidth - 1, Math.max(0, point.x + deltaX)),
+    y: Math.min(imageHeight - 1, Math.max(0, point.y + deltaY)),
+  };
+}
 
 export function rgbToHex({ red, green, blue }: RgbColor): string {
   return `#${[red, green, blue]
