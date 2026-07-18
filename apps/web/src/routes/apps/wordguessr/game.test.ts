@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { categories, letterWeights } from './content';
+import { categories, copy, letterWeights } from './content';
 import {
   boardPath,
   createGame,
@@ -142,6 +142,9 @@ describe('Wordguessr game', () => {
   it('keeps both languages aligned and excludes X and Y', () => {
     expect(categories.en).toHaveLength(102);
     expect(categories.de).toHaveLength(categories.en.length);
+    expect(categories.de[0]).toBe('Etwas, das rund ist');
+    expect(copy.language).toBe('Word language');
+    expect(copy).not.toHaveProperty('de');
     expect(letterWeights).not.toHaveProperty('X');
     expect(letterWeights).not.toHaveProperty('Y');
   });

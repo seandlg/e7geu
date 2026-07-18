@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { timerPresets } from './content';
+import { timerCopy, timerPresets } from './content';
 import {
   createSession,
   remainingMs,
@@ -20,7 +20,8 @@ const config: ReminderConfig = {
 
 describe('break timer', () => {
   it('ships the literal 20-20-20 preset', () => {
-    expect(timerPresets('en')[0]).toMatchObject({
+    expect(timerCopy).not.toHaveProperty('de');
+    expect(timerPresets()[0]).toMatchObject({
       id: 'eye-break',
       workMs: 20 * 60 * 1000,
       breakMs: 20 * 1000,

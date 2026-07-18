@@ -19,7 +19,7 @@
     { id: 1, name: 'Dolphins', emoji: teamEmojis[0] },
     { id: 2, name: 'Rockets', emoji: teamEmojis[1] },
   ]);
-  const text = $derived(copy[locale]);
+  const text = copy;
   const validTeams = $derived(teams.filter((team) => team.name.trim().length > 0));
 
   function updateTeam(id: number, values: Partial<TeamInput>): void {

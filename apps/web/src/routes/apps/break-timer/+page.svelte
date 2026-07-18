@@ -3,11 +3,7 @@
   import AppHeader from '$lib/ui/AppHeader.svelte';
   import { configureTimerAudio, playBreakDue, playBreakFinished } from './audio';
   import BreakScreen from './BreakScreen.svelte';
-  import {
-    timerCopy,
-    type AlertPreferences,
-    type TimerLocale,
-  } from './content';
+  import { timerCopy, type AlertPreferences } from './content';
   import SessionSummaryView from './SessionSummary.svelte';
   import {
     createSession,
@@ -24,7 +20,6 @@
   const SETTINGS_KEY = 'e7g-break-timer-settings';
   const SESSION_KEY = 'e7g-break-timer-session';
 
-  let locale: TimerLocale = $state('en');
   let preferences: AlertPreferences = $state({
     sound: true,
     vibration: true,
@@ -36,7 +31,7 @@
   let notificationStatus: NotificationPermission | 'unsupported' = $state('unsupported');
   let showInstallHint = $state(false);
 
-  const text = $derived(timerCopy[locale]);
+  const text = timerCopy;
 
   function start(config: ReminderConfig): void {
     configureTimerAudio(preferences.sound);
@@ -99,11 +94,6 @@
     summary = null;
   }
 
-  function updateLocale(nextLocale: TimerLocale): void {
-    locale = nextLocale;
-    persistSettings();
-  }
-
   function updatePreferences(nextPreferences: AlertPreferences): void {
     const previewSound = nextPreferences.sound && !preferences.sound;
     preferences = nextPreferences;
@@ -164,7 +154,7 @@
   }
 
   function persistSettings(): void {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ locale, preferences }));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ preferences }));
   }
 
   function persistSession(): void {
@@ -176,10 +166,8 @@
       const settings: unknown = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? 'null');
       if (settings && typeof settings === 'object') {
         const saved = settings as {
-          locale?: unknown;
           preferences?: Partial<AlertPreferences>;
         };
-        if (saved.locale === 'en' || saved.locale === 'de') locale = saved.locale;
         if (
           typeof saved.preferences?.sound === 'boolean' &&
           typeof saved.preferences.vibration === 'boolean' &&
@@ -196,7 +184,6 @@
   }
 
   onMount(() => {
-    locale = navigator.language.toLowerCase().startsWith('de') ? 'de' : 'en';
     restoreLocalState();
     notificationStatus = 'Notification' in window ? Notification.permission : 'unsupported';
     const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -240,17 +227,13 @@
   {:else if summary}
     <SessionSummaryView {summary} {text} onAgain={startAgain} />
   {:else}
-    {#key locale}
-      <TimerSetup
-        {locale}
-        {preferences}
-        {notificationStatus}
-        {showInstallHint}
-        onLocale={updateLocale}
-        onPreferences={updatePreferences}
-        onRequestNotifications={requestNotifications}
-        onStart={start}
-      />
-    {/key}
+    <TimerSetup
+      {preferences}
+      {notificationStatus}
+      {showInstallHint}
+      onPreferences={updatePreferences}
+      onRequestNotifications={requestNotifications}
+      onStart={start}
+    />
   {/if}
 </main>

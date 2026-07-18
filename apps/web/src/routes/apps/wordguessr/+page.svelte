@@ -21,7 +21,7 @@
   let confirmDialog = $state<HTMLDialogElement>();
   let winnerDialog = $state<HTMLDialogElement>();
 
-  const text = $derived.by(() => copy[game ? game.locale : initialLocale]);
+  const text = copy;
   const winner = $derived.by(findWinner);
   const winnerTheme = $derived(winner ? teamTheme(winner.palette) : teamTheme(0));
 

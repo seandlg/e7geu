@@ -4,6 +4,7 @@
 
 - e7g.eu is a stateless, browser-only PWA. Do not add a backend, database, analytics, or account system without an explicit product decision.
 - TypeScript is the only programming language. Svelte files use `<script lang="ts">` and Svelte 5 runes.
+- All user-facing UI copy is English unless another language is explicitly requested. Language-specific content may be offered when requested, but it must not implicitly localize the surrounding UI; for example, Wordguessr may offer English or German words while its controls and instructions remain English.
 - Use current browser APIs behind focused modules. Permission denial, unavailable hardware, insecure contexts, and unsupported APIs are normal UI states, not exceptional crashes.
 - The deployed application lives in `apps/web`. Every mini-app is a lazy-loaded SvelteKit route below `apps/web/src/routes/apps` and is registered once in `$lib/apps/catalog.ts`.
 - Keep a mini-app local to its route until two real callers need the same behavior. Put genuinely shared browser behavior in `$lib/browser`, pure domain logic in `$lib/domain`, and reusable presentation in `$lib/ui`.

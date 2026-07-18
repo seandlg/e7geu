@@ -1,46 +1,30 @@
 <script lang="ts">
-  import {
-    timerCopy,
-    timerPresets,
-    type AlertPreferences,
-    type TimerLocale,
-  } from './content';
+  import { timerCopy, timerPresets, type AlertPreferences } from './content';
   import type { ReminderConfig } from './timer';
 
   let {
-    locale,
     preferences,
     notificationStatus,
     showInstallHint,
-    onLocale,
     onPreferences,
     onRequestNotifications,
     onStart,
   }: {
-    locale: TimerLocale;
     preferences: AlertPreferences;
     notificationStatus: NotificationPermission | 'unsupported';
     showInstallHint: boolean;
-    onLocale: (locale: TimerLocale) => void;
     onPreferences: (preferences: AlertPreferences) => void;
     onRequestNotifications: () => Promise<void>;
     onStart: (config: ReminderConfig) => void;
   } = $props();
 
-  const text = $derived(timerCopy[locale]);
-  const presets = $derived(timerPresets(locale));
+  const text = timerCopy;
+  const presets = timerPresets();
   let selectedId = $state('eye-break');
   let customLabel = $state('Custom break');
   let customInstruction = $state('Look away and move for a moment.');
   let customMinutes = $state(25);
   let customSeconds = $state(60);
-
-  $effect(() => {
-    if (locale === 'de') {
-      customLabel = 'Eigene Pause';
-      customInstruction = 'Schau weg und bewege dich kurz.';
-    }
-  });
 
   const selectedConfig = $derived.by<ReminderConfig>(() => {
     const preset = presets.find((option) => option.id === selectedId);
@@ -73,18 +57,12 @@
   <div class="pointer-events-none absolute -bottom-40 -left-24 h-80 w-80 rounded-full bg-teal-400/10 blur-3xl"></div>
 
   <header class="relative border-b border-white/8 px-5 py-7 sm:px-8 sm:py-9">
-    <div class="flex flex-wrap items-start justify-between gap-5">
-      <div>
-        <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-300/15 bg-cyan-300/8 px-3 py-1.5 text-[0.68rem] font-700 tracking-[0.14em] text-cyan-200 uppercase">
-          <span class="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_10px_#67e8f9]"></span>{text.setupEyebrow}
-        </div>
-        <h2 class="m-0 max-w-2xl text-3xl font-760 leading-[1.08] tracking-[-0.04em] text-white sm:text-5xl">{text.setupTitle}</h2>
-        <p class="mb-0 mt-4 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">{text.setupDescription}</p>
+    <div>
+      <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-300/15 bg-cyan-300/8 px-3 py-1.5 text-[0.68rem] font-700 tracking-[0.14em] text-cyan-200 uppercase">
+        <span class="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_10px_#67e8f9]"></span>{text.setupEyebrow}
       </div>
-      <div class="grid grid-cols-2 rounded-xl bg-black/25 p-1" aria-label="Language">
-        <button class={`focus-ring cursor-pointer rounded-lg border-0 px-3.5 py-2 text-xs font-750 ${locale === 'en' ? 'bg-white text-slate-950' : 'bg-transparent text-slate-500'}`} onclick={() => onLocale('en')}>EN</button>
-        <button class={`focus-ring cursor-pointer rounded-lg border-0 px-3.5 py-2 text-xs font-750 ${locale === 'de' ? 'bg-white text-slate-950' : 'bg-transparent text-slate-500'}`} onclick={() => onLocale('de')}>DE</button>
-      </div>
+      <h2 class="m-0 max-w-2xl text-3xl font-760 leading-[1.08] tracking-[-0.04em] text-white sm:text-5xl">{text.setupTitle}</h2>
+      <p class="mb-0 mt-4 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">{text.setupDescription}</p>
     </div>
   </header>
 
