@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+  - packages/*
+
+onlyBuiltDependencies: []
+
+patchedDependencies:
+  '@undecaf/barcode-detector-polyfill@0.9.23': apps/web/patches/@undecaf__barcode-detector-polyfill.patch
