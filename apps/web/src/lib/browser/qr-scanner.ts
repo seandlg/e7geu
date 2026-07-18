@@ -132,6 +132,27 @@ export async function scanQrImage(file: File): Promise<QrScan> {
   }
 }
 
+export function captureVideoFrame(
+  video: HTMLVideoElement,
+  createCanvas: () => HTMLCanvasElement = () => document.createElement('canvas'),
+): string | null {
+  const { videoWidth: width, videoHeight: height } = video;
+  if (width <= 0 || height <= 0) return null;
+
+  const canvas = createCanvas();
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) return null;
+
+  try {
+    context.drawImage(video, 0, 0, width, height);
+    return canvas.toDataURL('image/jpeg', 0.86);
+  } catch {
+    return null;
+  }
+}
+
 export function safeWebUrl(value: string): string | null {
   try {
     const url = new URL(value);

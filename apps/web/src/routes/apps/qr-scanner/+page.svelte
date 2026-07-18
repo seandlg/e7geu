@@ -2,6 +2,7 @@
   import { onDestroy, onMount, tick } from 'svelte';
   import AppHeader from '$lib/ui/AppHeader.svelte';
   import {
+    captureVideoFrame,
     safeWebUrl,
     scanQrImage,
     startQrCamera,
@@ -28,6 +29,7 @@
   let flashAvailable = $state(false);
   let flashOn = $state(false);
   let copied = $state(false);
+  let frozenFrame = $state('');
   let generateValue = $state('');
   let generateError = $state('');
   let history: QrHistoryItem[] = $state([]);
@@ -42,6 +44,7 @@
     status = 'starting';
     error = '';
     result = '';
+    frozenFrame = '';
     copied = false;
     camera?.destroy();
     camera = null;
@@ -62,6 +65,7 @@
   }
 
   function handleResult(data: string): void {
+    frozenFrame = video ? (captureVideoFrame(video) ?? '') : '';
     result = data;
     status = 'result';
     camera?.stop();
@@ -143,6 +147,7 @@
 
   async function resume(): Promise<void> {
     result = '';
+    frozenFrame = '';
     copied = false;
     error = '';
     if (!camera) {
@@ -236,6 +241,11 @@
     <section class="glass-panel mt-4 overflow-hidden rounded-[2rem]">
       <div class="relative aspect-[4/5] max-h-[65dvh] min-h-96 bg-black sm:aspect-[4/3]">
         <video bind:this={video} class="h-full w-full object-cover" playsinline muted aria-label="Camera preview"></video>
+        {#if status === 'result' && frozenFrame}
+          <img class="absolute inset-0 h-full w-full object-cover" src={frozenFrame} alt="" aria-hidden="true" />
+          <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-black/10"></div>
+          <div class="absolute left-4 top-4 rounded-full bg-emerald-300 px-3 py-1.5 text-xs font-700 text-slate-950 shadow-lg">Code captured</div>
+        {/if}
         {#if status === 'idle' || status === 'error'}
           <div class="absolute inset-0 grid place-items-center bg-slate-950/88 p-7 text-center backdrop-blur-sm">
             <div>
