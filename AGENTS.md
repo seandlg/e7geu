@@ -45,5 +45,7 @@ Node 24+ can execute `.ts` scripts only when their TypeScript syntax is erasable
 - Use Conventional Commits for every commit: `<type>(optional-scope): <imperative summary>`.
 - Prefer the narrowest accurate type, such as `feat`, `fix`, `refactor`, `test`, `docs`, `build`, or `chore`.
 - Keep each commit cohesive. Do not mix unrelated cleanup into a feature or fix commit.
+- Once a change is implemented and the relevant checks pass, Codex may create the commit without asking again. The user pushes commits manually; Codex must not push unless explicitly requested.
+- Before a commit is pushed, follow-up changes may be folded into it with `git commit --amend` when the user requests that history shape. Never amend a commit already present on a remote branch unless explicitly authorized.
 
 Before handing off a change, run `vp check`, `vp run typecheck`, `vp test`, and `vp run build`. Add only the narrowest relevant test for behavior changed.
