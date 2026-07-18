@@ -1,4 +1,4 @@
-export type AppIcon = 'qr' | 'speed' | 'sound' | 'color' | 'word' | 'break';
+export type AppIcon = 'qr' | 'speed' | 'sound' | 'color' | 'word' | 'break' | 'cv';
 
 export type ToolboxApp = {
   name: string;
@@ -57,5 +57,13 @@ export const toolboxApps: readonly ToolboxApp[] = [
     icon: 'break',
     accent: '#22d3ee',
     capability: 'Timer',
+  },
+  {
+    name: 'CV Generator',
+    description: 'Create, save, and print a polished CV on your device.',
+    href: '/apps/cv-generator',
+    icon: 'cv',
+    accent: '#60a5fa',
+    capability: 'Documents',
   },
 ] as const;
