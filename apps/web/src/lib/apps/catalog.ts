@@ -1,4 +1,13 @@
-export type AppIcon = 'qr' | 'speed' | 'sound' | 'color' | 'word' | 'break' | 'cv' | 'image';
+export type AppIcon =
+  | 'qr'
+  | 'record'
+  | 'speed'
+  | 'sound'
+  | 'color'
+  | 'word'
+  | 'break'
+  | 'cv'
+  | 'image';
 
 export type ToolboxApp = {
   name: string;
@@ -10,6 +19,14 @@ export type ToolboxApp = {
 };
 
 export const toolboxApps: readonly ToolboxApp[] = [
+  {
+    name: 'Darkroom Recorder',
+    description: 'Record private video with a distraction-free black screen.',
+    href: '/apps/darkroom-recorder',
+    icon: 'record',
+    accent: '#ef4444',
+    capability: 'Camera + microphone',
+  },
   {
     name: 'Image Compressor',
     description: 'Resize, compress, and convert images without uploading them.',

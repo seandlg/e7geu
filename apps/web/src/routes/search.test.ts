@@ -11,6 +11,7 @@ describe('app search', () => {
     expect(searchApps(toolboxApps, 'TIMER').map((app) => app.name)).toEqual(['Break Timer']);
     expect(searchApps(toolboxApps, 'frequency').map((app) => app.name)).toEqual(['Sound meter']);
     expect(searchApps(toolboxApps, 'camera').map((app) => app.name)).toEqual([
+      'Darkroom Recorder',
       'QR scanner',
       'Color inspector',
     ]);

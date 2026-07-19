@@ -9,6 +9,12 @@
     <path d="M7 18V9a2 2 0 0 1 2-2h9M30 7h9a2 2 0 0 1 2 2v9M41 30v9a2 2 0 0 1-2 2h-9M18 41H9a2 2 0 0 1-2-2v-9" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
     <path d="M14 14h8v8h-8zM27 14h7v7h-7zM14 27h8v7h-8zM27 27h4v4h-4zM34 34h-7v-3M34 24v5" fill="currentColor"/>
   </svg>
+{:else if icon === 'record'}
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
+    <rect x="7" y="11" width="27" height="26" rx="7" stroke="currentColor" stroke-width="3.2"/>
+    <path d="m34 19 8-5v20l-8-5" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"/>
+    <circle cx="20.5" cy="24" r="6" fill="currentColor"/>
+  </svg>
 {:else if icon === 'speed'}
   <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
     <path d="M9 36a19 19 0 1 1 30 0" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>

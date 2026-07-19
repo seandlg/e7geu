@@ -28,11 +28,37 @@ describe('openCamera', () => {
     expect(firstTrack.stop).toHaveBeenCalledOnce();
     expect(getUserMedia).toHaveBeenLastCalledWith({
       video: { deviceId: { exact: 'macro' } },
+      audio: false,
     });
     expect(camera.activeDeviceId()).toBe('macro');
+    expect(camera.stream()).toBe(secondStream);
     camera.stop();
     expect(secondTrack.stop).toHaveBeenCalledOnce();
     expect(video.srcObject).toBeNull();
+  });
+
+  it('requests audio and applies video limits without leaking them into device selection', async () => {
+    const track = cameraTrack('rear');
+    const stream = cameraStream(track);
+    const getUserMedia = vi.fn().mockResolvedValue(stream);
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
+    const video = { srcObject: null, play: vi.fn() } as unknown as HTMLVideoElement;
+
+    const camera = await openCamera(video, {
+      audio: true,
+      video: { width: { max: 1920 }, height: { max: 1080 }, frameRate: { max: 30 } },
+    });
+
+    expect(getUserMedia).toHaveBeenCalledWith({
+      audio: true,
+      video: {
+        width: { max: 1920 },
+        height: { max: 1080 },
+        frameRate: { max: 30 },
+        facingMode: { ideal: 'environment' },
+      },
+    });
+    expect(camera.stream()).toBe(stream);
   });
 });
 

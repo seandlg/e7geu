@@ -4,9 +4,16 @@ export type CameraController = {
   activeDeviceId: () => string | null;
   devices: () => Promise<CameraDevice[]>;
   hasTorch: () => boolean;
+  stream: () => MediaStream | null;
   setTorch: (enabled: boolean) => Promise<void>;
   start: (deviceId?: string) => Promise<void>;
   stop: () => void;
+};
+
+export type CameraOptions = {
+  audio?: boolean | MediaTrackConstraints;
+  facingMode?: 'environment' | 'user';
+  video?: MediaTrackConstraints;
 };
 
 type TorchCapabilities = MediaTrackCapabilities & { torch?: boolean };
@@ -14,9 +21,12 @@ type TorchConstraint = MediaTrackConstraintSet & { torch?: boolean };
 
 export async function openCamera(
   video: HTMLVideoElement,
-  facingMode: 'environment' | 'user' = 'environment',
+  options: CameraOptions | 'environment' | 'user' = 'environment',
 ): Promise<CameraController> {
   if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera API unavailable');
+
+  const settings: CameraOptions = typeof options === 'string' ? { facingMode: options } : options;
+  const facingMode = settings.facingMode ?? 'environment';
 
   let stream: MediaStream | null = null;
   let selectedDeviceId: string | undefined;
@@ -29,10 +39,14 @@ export async function openCamera(
 
   const start = async (deviceId = selectedDeviceId): Promise<void> => {
     stop();
-    const constraints: MediaTrackConstraints = deviceId
-      ? { deviceId: { exact: deviceId } }
-      : { facingMode: { ideal: facingMode } };
-    const nextStream = await navigator.mediaDevices.getUserMedia({ video: constraints });
+    const constraints: MediaTrackConstraints = {
+      ...settings.video,
+      ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: facingMode } }),
+    };
+    const nextStream = await navigator.mediaDevices.getUserMedia({
+      video: constraints,
+      audio: settings.audio ?? false,
+    });
     stream = nextStream;
     video.srcObject = nextStream;
     try {
@@ -49,6 +63,7 @@ export async function openCamera(
   return {
     stop,
     start,
+    stream: () => stream,
     activeDeviceId: () =>
       stream?.getVideoTracks()[0]?.getSettings().deviceId ?? selectedDeviceId ?? null,
     devices: async () => {
