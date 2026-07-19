@@ -70,12 +70,14 @@
 <main class="mx-auto min-h-dvh max-w-5xl px-5 pb-[max(3rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-8 sm:pt-10">
   <AppHeader title="Berlin Work Cafés" subtitle="Candid notes · practical details" icon="cafe" />
 
-  <section class="relative mt-8 overflow-hidden rounded-[2rem] border border-orange-300/12 bg-[#17120f] px-5 py-7 sm:px-8 sm:py-10" aria-labelledby="guide-heading">
-    <div class="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-orange-400/12 blur-3xl"></div>
-    <div class="relative max-w-2xl">
+  <section class="relative mt-8 overflow-hidden rounded-[2rem] border border-orange-300/12 bg-[#17120f] sm:flex sm:min-h-[22rem] sm:items-end" aria-labelledby="guide-heading">
+    <img class="h-48 w-full object-cover object-[35%_center] sm:absolute sm:inset-0 sm:h-full sm:object-center" src="/images/berlin-work-cafes-hero.webp" alt="Sunlit café interior with window seating and a wall-mounted coffee menu" width="1800" height="600" fetchpriority="high" />
+    <div class="absolute inset-0 hidden bg-gradient-to-r from-[#100d0a]/95 via-[#100d0a]/78 to-[#100d0a]/25 sm:block"></div>
+    <div class="absolute inset-0 hidden bg-gradient-to-t from-[#100d0a]/65 via-transparent to-black/10 sm:block"></div>
+    <div class="relative max-w-2xl px-5 py-7 sm:px-8 sm:py-10">
       <p class="m-0 text-xs font-700 tracking-[0.18em] text-orange-300 uppercase">Small and opinionated</p>
       <h1 id="guide-heading" class="mb-0 mt-3 text-3xl font-750 leading-tight tracking-[-0.035em] text-white sm:text-5xl">A desk, a socket,<br />and decent coffee.</h1>
-      <p class="mb-0 mt-4 max-w-xl text-sm leading-6 text-stone-400 sm:text-base sm:leading-7">Not every café with Wi-Fi is a work café. These are personally assessed for the details that decide whether opening a laptop is actually a good idea.</p>
+      <p class="mb-0 mt-4 max-w-xl text-sm leading-6 text-stone-400 sm:text-base sm:leading-7">Not every café with Wi-Fi is a work café. These are assessed for the details that decide whether opening a laptop is actually a good idea.</p>
     </div>
   </section>
 
