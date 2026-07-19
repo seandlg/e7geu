@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vite-plus/test';
 import {
   isRecordingControlKey,
+  modeAfterBlackoutExit,
   recordingExtension,
   recordingFilename,
   startVideoRecording,
@@ -29,6 +30,17 @@ describe('recording format helpers', () => {
     expect(isRecordingControlKey('Enter')).toBe(true);
     expect(isRecordingControlKey('Escape')).toBe(false);
     expect(isRecordingControlKey('a')).toBe(false);
+  });
+});
+
+describe('blackout interaction', () => {
+  it('returns an armed recorder to its usable setup state', () => {
+    expect(modeAfterBlackoutExit('armed')).toBe('ready');
+  });
+
+  it('does not interrupt recording or finished-clip states', () => {
+    expect(modeAfterBlackoutExit('recording')).toBe('recording');
+    expect(modeAfterBlackoutExit('finished')).toBe('finished');
   });
 });
 

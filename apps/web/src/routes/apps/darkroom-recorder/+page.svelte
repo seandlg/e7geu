@@ -10,26 +10,17 @@
     RECORDING_LIMIT_MS,
     RECORDING_WARNING_MS,
     isRecordingControlKey,
+    modeAfterBlackoutExit,
     startVideoRecording,
     type ActiveRecording,
+    type DarkroomMode,
     type RecordedClip,
   } from './recorder';
-
-  type Mode =
-    | 'idle'
-    | 'starting'
-    | 'ready'
-    | 'armed'
-    | 'recording'
-    | 'finalizing'
-    | 'finished'
-    | 'error'
-    | 'unsupported';
 
   let video = $state<HTMLVideoElement>();
   let camera = $state<CameraController | null>(null);
   let recording = $state<ActiveRecording | null>(null);
-  let mode = $state<Mode>('idle');
+  let mode = $state<DarkroomMode>('idle');
   let blackout = $state(false);
   let audioEnabled = $state(true);
   let cameras: CameraDevice[] = $state([]);
@@ -38,7 +29,7 @@
   let error = $state('');
   let warning = $state('');
   let elapsedMs = $state(0);
-  let statusPeek = $state(false);
+  let blackoutControls = $state(false);
   let clip: RecordedClip | null = $state(null);
   let clipUrl = $state('');
   let shareAvailable = $state(false);
@@ -51,6 +42,7 @@
   let limitTimer: ReturnType<typeof setTimeout> | null = null;
   let recordingStartedAt = 0;
   let holdTimer: ReturnType<typeof setTimeout> | null = null;
+  let controlsPanel = $state<HTMLElement>();
   let held = false;
   let multiTouch = false;
   const pointers = new Set<number>();
@@ -58,10 +50,10 @@
   const canEnterBlackout = $derived(mode === 'ready' && camera?.stream());
   const blackoutLabel = $derived(
     mode === 'recording'
-      ? 'Recording. Tap to stop. Hold to check status. Use two fingers to show controls.'
+      ? 'Recording. Tap to stop. Hold for controls, or press Escape to exit dark mode.'
       : mode === 'armed'
-        ? 'Ready to record. Tap to start. Hold to check status. Use two fingers to show controls.'
-        : 'Recording finished. Use two fingers to show controls.',
+        ? 'Ready to record. Tap to start. Hold for controls, or press Escape to exit dark mode.'
+        : 'Recording finished. Hold for controls, or press Escape to exit dark mode.',
   );
   const spokenStatus = $derived(
     mode === 'recording'
@@ -130,17 +122,22 @@
     if (!canEnterBlackout) return;
     mode = 'armed';
     blackout = true;
-    statusPeek = false;
+    blackoutControls = false;
     await requestWakeLock();
   }
 
   function leaveBlackout(): void {
+    mode = modeAfterBlackoutExit(mode);
     blackout = false;
-    statusPeek = false;
+    blackoutControls = false;
     clearHold();
     pointers.clear();
     multiTouch = false;
     if (mode !== 'recording' && mode !== 'finalizing') void releaseWakeLock();
+    requestAnimationFrame(() => {
+      controlsPanel?.scrollIntoView({ block: 'nearest' });
+      controlsPanel?.querySelector<HTMLElement>('button, a')?.focus({ preventScroll: true });
+    });
   }
 
   function toggleRecording(): void {
@@ -159,6 +156,7 @@
       const nextRecording = startVideoRecording(stream);
       recording = nextRecording;
       mode = 'recording';
+      blackoutControls = false;
       elapsedTimer = setInterval(() => {
         elapsedMs = Date.now() - recordingStartedAt;
       }, 250);
@@ -185,6 +183,7 @@
     warning = nextClip.warning ?? '';
     mode = 'finished';
     stopCamera();
+    if (blackout) blackoutControls = true;
     void releaseWakeLock();
   }
 
@@ -267,7 +266,8 @@
     held = false;
     holdTimer = setTimeout(() => {
       held = true;
-      statusPeek = true;
+      pointers.clear();
+      blackoutControls = true;
     }, 450);
   }
 
@@ -280,7 +280,6 @@
     }
     clearHoldTimer();
     if (held) {
-      statusPeek = false;
       held = false;
       return;
     }
@@ -346,7 +345,13 @@
   function clearHold(): void {
     clearHoldTimer();
     held = false;
-    statusPeek = false;
+  }
+
+  function hideBlackoutControls(): void {
+    blackoutControls = false;
+    clearHold();
+    pointers.clear();
+    multiTouch = false;
   }
 
   function clipFile(value: RecordedClip): File {
@@ -416,7 +421,7 @@
     <div class="relative aspect-[4/5] min-h-96 bg-black sm:aspect-video">
       <video
         bind:this={video}
-        class={mode === 'ready' || mode === 'starting' ? 'h-full w-full object-cover' : 'invisible h-full w-full object-cover'}
+        class={`absolute inset-0 h-full w-full object-cover ${!blackout && ['ready', 'starting', 'recording', 'finalizing'].includes(mode) ? 'visible' : 'invisible'}`}
         playsinline
         muted
         aria-label="Camera preview"
@@ -448,12 +453,12 @@
         <div class="absolute inset-0 grid place-items-center bg-black/75 text-sm font-650 text-slate-300">Starting camera…</div>
       {:else if mode === 'finished' && clipUrl}
         <!-- svelte-ignore a11y_media_has_caption -->
-        <video class="h-full w-full bg-black object-contain" src={clipUrl} controls playsinline aria-label="Recorded clip"></video>
+        <video class="absolute inset-0 h-full w-full bg-black object-contain" src={clipUrl} controls playsinline aria-label="Recorded clip"></video>
       {/if}
     </div>
 
     {#if mode === 'ready'}
-      <div class="border-t border-white/8 p-5 sm:p-6">
+      <div bind:this={controlsPanel} class="border-t border-white/8 p-5 sm:p-6" tabindex="-1">
         <div class="grid gap-4 sm:grid-cols-2">
           {#if cameras.length > 1}
             <label class="text-sm font-650 text-slate-300">Camera
@@ -472,14 +477,14 @@
         <button class="focus-ring mt-5 w-full cursor-pointer rounded-full bg-red-300 px-5 py-3.5 text-sm font-750 text-slate-950 hover:bg-red-200" onclick={enterBlackout}>Enter dark mode</button>
       </div>
     {:else if mode === 'recording' || mode === 'finalizing'}
-      <div class="border-t border-white/8 p-5 text-center sm:p-6">
+      <div bind:this={controlsPanel} class="border-t border-white/8 p-5 text-center sm:p-6" tabindex="-1">
         <p class="m-0 text-sm font-750 tracking-[0.18em] text-red-300 uppercase">{mode === 'recording' ? `Recording ${formatDuration(elapsedMs)}` : 'Finalizing…'}</p>
         {#if mode === 'recording'}
           <button class="focus-ring mt-4 cursor-pointer rounded-full bg-red-300 px-6 py-3 text-sm font-750 text-slate-950" onclick={stopRecording}>Stop recording</button>
         {/if}
       </div>
     {:else if mode === 'finished' && clip}
-      <div class="border-t border-white/8 p-5 sm:p-6">
+      <div bind:this={controlsPanel} class="border-t border-white/8 p-5 sm:p-6" tabindex="-1">
         <div class="flex items-center justify-between gap-4">
           <div>
             <p class="m-0 font-700 text-white">Clip ready</p>
@@ -505,8 +510,8 @@
     <h2 class="m-0 text-base font-700 text-white">Blind controls</h2>
     <ul class="mb-0 mt-3 space-y-1.5 pl-5">
       <li>Tap anywhere to start or stop.</li>
-      <li>Hold to peek at recording status.</li>
-      <li>Tap with two fingers to show controls.</li>
+      <li>Hold until the dim controls appear, then choose Exit dark mode.</li>
+      <li>Tap with two fingers, or press Escape on a keyboard, to exit immediately.</li>
       <li>Volume and media buttons work only when your browser passes them through.</li>
     </ul>
     <p class="mb-0 mt-4">Clips are limited to 10 minutes and remain in memory until saved. Locking or leaving the app may stop recording. System camera and microphone indicators remain visible.</p>
@@ -515,29 +520,42 @@
 </main>
 
 {#if blackout}
-  <button
-    class="fixed inset-0 z-50 block h-dvh w-screen touch-none cursor-default border-0 bg-black p-0 text-white outline-none"
-    type="button"
-    aria-label={blackoutLabel}
-    onpointerdown={pointerDown}
-    onpointerup={pointerUp}
-    onpointercancel={pointerCancel}
-    oncontextmenu={(event) => event.preventDefault()}
-  >
-    {#if statusPeek}
-      <span class="absolute inset-0 grid place-items-center bg-black text-[0.7rem] font-750 tracking-[0.22em] text-red-950 uppercase">
-        {mode === 'recording'
-          ? elapsedMs >= RECORDING_WARNING_MS
-            ? `REC ${formatDuration(elapsedMs)} · stops at 10:00`
-            : `REC ${formatDuration(elapsedMs)}`
-          : mode === 'armed'
-            ? 'Ready · tap to record'
-            : mode === 'finalizing'
-              ? 'Finalizing'
-              : 'Clip ready · two-finger tap'}
-      </span>
+  <div class="fixed inset-0 z-50 h-dvh w-screen bg-black">
+    {#if !blackoutControls}
+      <button
+        class="absolute inset-0 block h-full w-full touch-none cursor-default border-0 bg-black p-0 text-white outline-none"
+        type="button"
+        aria-label={blackoutLabel}
+        onpointerdown={pointerDown}
+        onpointerup={pointerUp}
+        onpointercancel={pointerCancel}
+        oncontextmenu={(event) => event.preventDefault()}
+      ></button>
+    {:else}
+      <section class="absolute inset-0 z-10 grid place-items-center bg-black p-6 text-center" aria-label="Dark mode controls">
+        <div class="w-full max-w-xs rounded-3xl border border-red-400/20 bg-red-950/10 p-5">
+          <p class="m-0 text-sm font-750 tracking-[0.16em] text-red-300 uppercase">
+            {mode === 'recording'
+              ? elapsedMs >= RECORDING_WARNING_MS
+                ? `Recording ${formatDuration(elapsedMs)} · stops at 10:00`
+                : `Recording ${formatDuration(elapsedMs)}`
+              : mode === 'armed'
+                ? 'Ready to record'
+                : mode === 'finalizing'
+                  ? 'Finalizing recording'
+                  : 'Clip ready'}
+          </p>
+          <div class="mt-5 grid gap-3">
+            <button class="focus-ring cursor-pointer rounded-full bg-red-300 px-5 py-3 text-sm font-750 text-slate-950" type="button" onclick={leaveBlackout}>Exit dark mode</button>
+            {#if mode === 'recording'}
+              <button class="focus-ring cursor-pointer rounded-full border border-red-300/25 bg-red-300/8 px-5 py-3 text-sm font-700 text-red-200" type="button" onclick={stopRecording}>Stop recording</button>
+            {/if}
+            <button class="focus-ring cursor-pointer rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-650 text-slate-300" type="button" onclick={hideBlackoutControls}>Return to black</button>
+          </div>
+        </div>
+      </section>
     {/if}
-  </button>
+  </div>
 {/if}
 
 <div class="sr-only" aria-live="polite">{spokenStatus}</div>

@@ -1,6 +1,17 @@
 export const RECORDING_LIMIT_MS = 10 * 60 * 1000;
 export const RECORDING_WARNING_MS = 8 * 60 * 1000;
 
+export type DarkroomMode =
+  | 'idle'
+  | 'starting'
+  | 'ready'
+  | 'armed'
+  | 'recording'
+  | 'finalizing'
+  | 'finished'
+  | 'error'
+  | 'unsupported';
+
 export const preferredRecordingTypes = [
   'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
   'video/mp4',
@@ -73,6 +84,10 @@ export function isRecordingControlKey(key: string): boolean {
     ' ',
     'Enter',
   ].includes(key);
+}
+
+export function modeAfterBlackoutExit(mode: DarkroomMode): DarkroomMode {
+  return mode === 'armed' ? 'ready' : mode;
 }
 
 export function startVideoRecording(
