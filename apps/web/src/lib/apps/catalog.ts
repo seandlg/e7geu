@@ -1,4 +1,4 @@
-export type AppIcon = 'qr' | 'speed' | 'sound' | 'color' | 'word' | 'break' | 'cv';
+export type AppIcon = 'qr' | 'speed' | 'sound' | 'color' | 'word' | 'break' | 'cv' | 'image';
 
 export type ToolboxApp = {
   name: string;
@@ -10,6 +10,14 @@ export type ToolboxApp = {
 };
 
 export const toolboxApps: readonly ToolboxApp[] = [
+  {
+    name: 'Image Compressor',
+    description: 'Resize, compress, and convert images without uploading them.',
+    href: '/apps/image-compressor',
+    icon: 'image',
+    accent: '#c084fc',
+    capability: 'Images',
+  },
   {
     name: 'QR scanner',
     description: 'Scan QR codes with your camera or choose an image.',
