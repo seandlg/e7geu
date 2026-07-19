@@ -127,9 +127,9 @@
               <h3 class="mb-0 mt-2 text-xl font-750 leading-tight tracking-tight text-white">{cafe.name}</h3>
               <p class="mb-0 mt-1.5 text-xs leading-5 text-slate-500">{cafe.address}</p>
             </div>
-            <div class="shrink-0 rounded-2xl bg-orange-300/10 px-3 py-2 text-center" aria-label={`${cafe.score} out of 5 work café rating`}>
+            <div class="shrink-0 rounded-2xl bg-orange-300/10 px-3 py-2 text-center" aria-label={`${cafe.score} out of 5 ${cafe.scoreBasis === 'research' ? 'provisional research' : 'firsthand'} work café rating`}>
               <span class="block text-xl font-800 leading-none text-orange-300">{cafe.score}</span>
-              <span class="mt-1 block text-[0.58rem] font-700 tracking-wider text-orange-200/55 uppercase">of 5</span>
+              <span class="mt-1 block text-[0.58rem] font-700 tracking-wider text-orange-200/55 uppercase">{cafe.scoreBasis === 'research' ? 'research' : 'of 5'}</span>
             </div>
           </div>
 
@@ -183,6 +183,6 @@
 
   <aside class="mt-8 rounded-[1.5rem] border border-white/8 bg-white/[0.02] p-5 text-sm leading-6 text-slate-500">
     <h2 class="m-0 text-sm font-700 text-slate-300">How to read this guide</h2>
-    <p class="mb-0 mt-2">Scores and work notes come from the curator's assessment, checked against current venue information and public listings. Wi-Fi, sockets, rules, and opening hours can change—confirm before making a special trip.</p>
+    <p class="mb-0 mt-2">Scores combine the curator's firsthand notes with current research; research-only scores are provisional until a visit. Wi-Fi, sockets, rules, and opening hours can change—confirm before making a special trip.</p>
   </aside>
 </main>

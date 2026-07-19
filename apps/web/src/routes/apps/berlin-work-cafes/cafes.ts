@@ -7,6 +7,7 @@ export type WorkCafe = {
   area: string;
   address: string;
   score: 1 | 2 | 3 | 4 | 5;
+  scoreBasis: 'firsthand' | 'research';
   verdict: string;
   bestFor: readonly string[];
   watchOut: string;
@@ -50,6 +51,7 @@ export const cafes: readonly WorkCafe[] = [
     area: 'Gendarmenmarkt',
     address: 'Markgrafenstraße 34, 10117 Berlin',
     score: 5,
+    scoreBasis: 'firsthand',
     verdict:
       'A bright, dependable central option with a view that makes a work session feel less like one.',
     bestFor: ['Longer sessions', 'Winter sun', 'Central meetings'],
@@ -72,29 +74,31 @@ export const cafes: readonly WorkCafe[] = [
     checked: 'July 2026',
   },
   {
-    id: 'haferkater-eberswalder',
-    name: 'Haferkater Eberswalder Straße',
-    district: 'Pankow',
-    area: 'Prenzlauer Berg',
-    address: 'Eberswalder Straße 26, 10437 Berlin',
+    id: 'cafe-bar-kult',
+    name: 'Café & Bar KULT',
+    district: 'Friedrichshain-Kreuzberg',
+    area: 'Friedrichshain · RAW Gelände',
+    address: 'Revaler Straße 99, Tor 2/Haus 6, 10245 Berlin',
     score: 5,
+    scoreBasis: 'research',
     verdict:
-      'Cozy, genuinely pleasant for laptop work, with much better food than the average coffee stop.',
-    bestFor: ['Focused sessions', 'Breakfast or lunch', 'Vegetarian food'],
-    watchOut: 'The terrace sits on a loud, high-traffic street.',
+      'A purpose-built café, gallery, and coworking hybrid with unusually strong basics for a focused laptop session.',
+    bestFor: ['Focused sessions', 'Reliable Wi-Fi', 'Outdoor work'],
+    watchOut:
+      'Dedicated coworking desks cost extra, the food menu is light, and events can make noise less predictable.',
     evidence:
-      'The venue officially confirms guest Wi-Fi and indoor/terrace seating. A customer toilet is publicly reported; sockets are still unverified.',
+      'KULT officially welcomes laptops and confirms fast Wi-Fi, sockets, indoor/outdoor seating, light food, and optional reservable coworking desks. A customer toilet is publicly reported.',
     features: {
       wifi: 'yes',
-      power: 'unknown',
+      power: 'yes',
       indoor: 'yes',
       outdoor: 'yes',
       toilet: 'reported',
       food: 'yes',
     },
     links: {
-      maps: 'https://www.google.com/maps/search/?api=1&query=Caf%C3%A9%20Haferkater%2C%20Eberswalder%20Stra%C3%9Fe%2026%2C%2010437%20Berlin',
-      website: 'https://haferkater.com/stores/eberswalder-strasse/',
+      maps: 'https://www.google.com/maps/place/Caf%C3%A9+%26+Bar+KULT/@52.5078716,13.4524131,16.17z/data=!3m1!5s0x47a84e5a2b0a0f81:0x7c38da2f56fcbe27!4m6!3m5!1s0x47a84fd01ba8cceb:0x4cdf980d12d1c15a!8m2!3d52.5077373!4d13.4536995!16s%2Fg%2F11rcpb8md4?entry=ttu&g_ep=EgoyMDI2MDcxNS4wIKXMDSoASAFQAw%3D%3D',
+      website: 'https://www.kult-berlin.de/',
     },
     checked: 'July 2026',
   },
@@ -105,6 +109,7 @@ export const cafes: readonly WorkCafe[] = [
     area: 'Friedrichshain · Frankfurter Tor',
     address: 'Warschauer Straße 70, 10243 Berlin',
     score: 4,
+    scoreBasis: 'firsthand',
     verdict:
       'One of the stronger all-round work cafés in Friedrichshain, especially if you also want a proper meal.',
     bestFor: ['Laptop work', 'Cooked lunch', 'Frankfurter Tor'],
@@ -133,6 +138,7 @@ export const cafes: readonly WorkCafe[] = [
     area: 'Friedrichshain · Ostbahnhof',
     address: 'Am Ostbahnhof 9, 10243 Berlin',
     score: 4,
+    scoreBasis: 'firsthand',
     verdict:
       'Comfortable, predictable seating near the station with enough around it to support a practical work stop.',
     bestFor: ['Laptop work', 'Travel days', 'Comfortable seating'],

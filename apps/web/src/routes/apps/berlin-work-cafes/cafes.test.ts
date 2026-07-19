@@ -4,16 +4,16 @@ import { activeFilterCount, cafeDistricts, cafes, emptyCafeFilters, filterCafes 
 describe('filterCafes', () => {
   it('returns cafés by score and then name by default', () => {
     expect(filterCafes(cafes, emptyCafeFilters).map((cafe) => cafe.id)).toEqual([
+      'cafe-bar-kult',
       'einstein-gendarmenmarkt',
-      'haferkater-eberswalder',
       'espresso-house-ostbahnhof',
       'milch-und-zucker',
     ]);
   });
 
   it('searches names, areas, verdicts, and use cases without diacritics', () => {
-    expect(filterCafes(cafes, { ...emptyCafeFilters, query: 'Eberswalder Straße' })).toHaveLength(
-      1,
+    expect(filterCafes(cafes, { ...emptyCafeFilters, query: 'RAW reliable' })[0]?.id).toBe(
+      'cafe-bar-kult',
     );
     expect(filterCafes(cafes, { ...emptyCafeFilters, query: 'Frankfurter laptop' })[0]?.id).toBe(
       'milch-und-zucker',
@@ -26,7 +26,7 @@ describe('filterCafes', () => {
       district: 'Friedrichshain-Kreuzberg',
       power: true,
     });
-    expect(results.map((cafe) => cafe.id)).toEqual(['milch-und-zucker']);
+    expect(results.map((cafe) => cafe.id)).toEqual(['cafe-bar-kult', 'milch-und-zucker']);
   });
 
   it('treats limited availability as useful and excludes unavailable features', () => {
@@ -40,7 +40,12 @@ describe('filterCafes', () => {
 
 describe('filter helpers', () => {
   it('returns unique sorted districts', () => {
-    expect(cafeDistricts(cafes)).toEqual(['Friedrichshain-Kreuzberg', 'Mitte', 'Pankow']);
+    expect(cafeDistricts(cafes)).toEqual(['Friedrichshain-Kreuzberg', 'Mitte']);
+  });
+
+  it('keeps researched scores distinct from firsthand assessments', () => {
+    expect(cafes.find((cafe) => cafe.id === 'cafe-bar-kult')?.scoreBasis).toBe('research');
+    expect(cafes.some((cafe) => cafe.id === 'haferkater-eberswalder')).toBe(false);
   });
 
   it('counts active controls while ignoring whitespace-only search', () => {
