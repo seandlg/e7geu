@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import AppHeader from '$lib/ui/AppHeader.svelte';
+  import GpsDetails from './GpsDetails.svelte';
   import { watchSpeed, type LocationFailure, type SpeedReading } from '$lib/browser/geolocation';
   import { convertSpeed, type SpeedUnit } from '$lib/domain/speed';
 
@@ -8,6 +9,7 @@
   let status: 'idle' | 'locating' | 'active' | 'failed' = $state('idle');
   let reading: SpeedReading | null = $state(null);
   let failure: LocationFailure | null = $state(null);
+  let detailsOpen = $state(false);
   let stopWatching: (() => void) | null = null;
   const units: readonly SpeedUnit[] = ['km/h', 'mph', 'kn'];
 
@@ -22,6 +24,7 @@
   function start(): void {
     stopWatching?.();
     reading = null;
+    detailsOpen = false;
     failure = null;
     status = 'locating';
     stopWatching = watchSpeed(
@@ -30,6 +33,7 @@
         status = 'active';
       },
       (nextFailure) => {
+        detailsOpen = false;
         failure = nextFailure;
         status = 'failed';
       }
@@ -46,6 +50,7 @@
     stopWatching?.();
     stopWatching = null;
     status = 'idle';
+    detailsOpen = false;
   }
 
   onDestroy(() => stopWatching?.());
@@ -59,7 +64,7 @@
 <main class="mx-auto min-h-dvh max-w-3xl px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-8 sm:pt-10">
   <AppHeader title="Speedometer" subtitle="Live GPS · stays on your device" icon="speed" />
 
-  <section class="glass-panel mt-8 overflow-hidden rounded-[2rem] p-5 sm:p-8" aria-live="polite">
+  <section class="glass-panel mt-8 rounded-[2rem] p-5 sm:p-8" aria-live="polite">
     <div class="mx-auto flex aspect-square max-w-md flex-col items-center justify-center rounded-full border border-white/10 bg-slate-950/45 shadow-[inset_0_0_80px_rgb(139_92_246_/_0.08)]">
       <div class="mb-2 text-xs font-650 tracking-[0.24em] text-slate-500 uppercase">
         {status === 'active' ? 'Current speed' : status === 'locating' ? 'Finding GPS' : 'Ready'}
@@ -69,9 +74,10 @@
       </div>
       <div class="mt-2 text-lg font-650 text-violet-300">{unit}</div>
       {#if reading}
-        <div class="mt-7 flex gap-6 text-center text-xs text-slate-500">
+        <div class="mt-7 flex items-center gap-5 text-center text-xs text-slate-500">
           <div><span class="block text-base font-650 text-slate-300">±{Math.round(reading.accuracy)} m</span>accuracy</div>
           <div><span class="block text-base font-650 text-slate-300">{reading.heading === null ? '—' : `${Math.round(reading.heading)}°`}</span>heading</div>
+          <GpsDetails {reading} {unit} bind:open={detailsOpen} />
         </div>
       {/if}
     </div>

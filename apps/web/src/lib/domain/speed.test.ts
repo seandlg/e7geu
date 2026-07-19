@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { convertSpeed, deriveSpeed, type GeoSample } from './speed';
+import { convertSpeed, deriveSpeed, normaliseReceiverSpeed, type GeoSample } from './speed';
 
 const sample = (overrides: Partial<GeoSample> = {}): GeoSample => ({
   latitude: 52.52,
@@ -34,5 +34,19 @@ describe('deriveSpeed', () => {
 
   it('ignores stale samples', () => {
     expect(deriveSpeed(sample(), sample({ timestamp: 32_000 }))).toBeNull();
+  });
+});
+
+describe('normaliseReceiverSpeed', () => {
+  it('accepts finite non-negative receiver speeds', () => {
+    expect(normaliseReceiverSpeed(0)).toBe(0);
+    expect(normaliseReceiverSpeed(4.5)).toBe(4.5);
+  });
+
+  it('rejects malformed receiver speeds', () => {
+    expect(normaliseReceiverSpeed(-1)).toBeNull();
+    expect(normaliseReceiverSpeed(Number.POSITIVE_INFINITY)).toBeNull();
+    expect(normaliseReceiverSpeed(Number.NaN)).toBeNull();
+    expect(normaliseReceiverSpeed('4.5')).toBeNull();
   });
 });

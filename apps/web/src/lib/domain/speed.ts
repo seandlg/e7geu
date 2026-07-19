@@ -16,10 +16,13 @@ export function convertSpeed(metresPerSecond: number, unit: SpeedUnit): number {
   return safeSpeed * 3.6;
 }
 
+export function normaliseReceiverSpeed(speed: unknown): number | null {
+  return typeof speed === 'number' && Number.isFinite(speed) && speed >= 0 ? speed : null;
+}
+
 export function deriveSpeed(previous: GeoSample | null, current: GeoSample): number | null {
-  if (current.speed !== null && Number.isFinite(current.speed) && current.speed >= 0) {
-    return current.speed;
-  }
+  const receiverSpeed = normaliseReceiverSpeed(current.speed);
+  if (receiverSpeed !== null) return receiverSpeed;
   if (!previous) return null;
 
   const elapsedSeconds = (current.timestamp - previous.timestamp) / 1_000;
