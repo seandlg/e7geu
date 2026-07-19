@@ -51,6 +51,11 @@
     <path d="m10 35 9-9 6 6 5-5 8 8" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M36 13v8m-4-4h8" stroke="currentColor" stroke-width="2.7" stroke-linecap="round"/>
   </svg>
+{:else if icon === 'cafe'}
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
+    <path d="M10 16h25v13a11 11 0 0 1-11 11h-3a11 11 0 0 1-11-11V16Z" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"/>
+    <path d="M35 20h3a6 6 0 0 1 0 12h-4M8 41h31M17 11c0-3 2-4 2-7M25 11c0-3 2-4 2-7" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+  </svg>
 {:else}
   <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
     <path d="M13 6h15l8 8v28H13a3 3 0 0 1-3-3V9a3 3 0 0 1 3-3Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>

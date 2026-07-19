@@ -7,7 +7,8 @@ export type AppIcon =
   | 'word'
   | 'break'
   | 'cv'
-  | 'image';
+  | 'image'
+  | 'cafe';
 
 export type ToolboxApp = {
   name: string;
@@ -19,6 +20,14 @@ export type ToolboxApp = {
 };
 
 export const toolboxApps: readonly ToolboxApp[] = [
+  {
+    name: 'Berlin Work Cafés',
+    description: 'Find candidly reviewed Berlin cafés that are actually practical for work.',
+    href: '/apps/berlin-work-cafes',
+    icon: 'cafe',
+    accent: '#fb923c',
+    capability: 'Local guide',
+  },
   {
     name: 'Darkroom Recorder',
     description: 'Record private video with a distraction-free black screen.',
