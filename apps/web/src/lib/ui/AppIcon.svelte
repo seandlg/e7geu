@@ -56,6 +56,12 @@
     <path d="M10 16h25v13a11 11 0 0 1-11 11h-3a11 11 0 0 1-11-11V16Z" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"/>
     <path d="M35 20h3a6 6 0 0 1 0 12h-4M8 41h31M17 11c0-3 2-4 2-7M25 11c0-3 2-4 2-7" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
   </svg>
+{:else if icon === 'calendar'}
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
+    <rect x="7" y="10" width="34" height="31" rx="7" stroke="currentColor" stroke-width="3.2"/>
+    <path d="M7 20h34M16 6v8M32 6v8" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
+    <path d="M15 27h4M25 27h4M35 27h1M15 34h4M25 34h4M35 34h1" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+  </svg>
 {:else}
   <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
     <path d="M13 6h15l8 8v28H13a3 3 0 0 1-3-3V9a3 3 0 0 1 3-3Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>

@@ -8,7 +8,8 @@ export type AppIcon =
   | 'break'
   | 'cv'
   | 'image'
-  | 'cafe';
+  | 'cafe'
+  | 'calendar';
 
 export type ToolboxApp = {
   name: string;
@@ -20,6 +21,14 @@ export type ToolboxApp = {
 };
 
 export const toolboxApps: readonly ToolboxApp[] = [
+  {
+    name: 'Germany Calendar',
+    description: 'Compare school breaks and public holidays across German states.',
+    href: '/apps/germany-calendar',
+    icon: 'calendar',
+    accent: '#2dd4bf',
+    capability: 'Calendar',
+  },
   {
     name: 'Berlin Work Cafés',
     description: 'Find candidly reviewed Berlin cafés that are actually practical for work.',
