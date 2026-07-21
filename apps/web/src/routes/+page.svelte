@@ -18,8 +18,8 @@
       <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#34d399]"></span>
       Runs on your device
     </div>
-    <h1 class="m-0 max-w-2xl text-4xl font-750 leading-[1.02] tracking-[-0.045em] text-white sm:text-6xl">Useful tools.<br /><span class="text-slate-400">Nothing leaves your browser.</span></h1>
-    <p class="mt-5 max-w-xl text-base leading-7 text-slate-400 sm:text-lg">A small drawer of everyday utilities. No accounts, uploads, or tracking.</p>
+    <h1 class="m-0 max-w-2xl text-4xl font-750 leading-[1.02] tracking-[-0.045em] text-white sm:text-6xl">Useful tools.<br /><span class="text-slate-400">Private by default.</span></h1>
+    <p class="mt-5 max-w-xl text-base leading-7 text-slate-400 sm:text-lg">A small drawer of everyday utilities. No accounts, ads, or tracking.</p>
   </header>
 
   <section aria-labelledby="tools-heading">

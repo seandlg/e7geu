@@ -62,6 +62,12 @@
     <path d="M7 20h34M16 6v8M32 6v8" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
     <path d="M15 27h4M25 27h4M35 27h1M15 34h4M25 34h4M35 34h1" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
   </svg>
+{:else if icon === 'cards'}
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
+    <rect x="15" y="6" width="25" height="34" rx="5" transform="rotate(8 15 6)" stroke="currentColor" stroke-width="3"/>
+    <rect x="7" y="9" width="25" height="34" rx="5" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="3"/>
+    <path d="M19.5 17.5c2.8 4.4 6.2 6.7 6.2 10.1a6.2 6.2 0 0 1-12.4 0c0-3.4 3.4-5.7 6.2-10.1Z" fill="currentColor"/>
+  </svg>
 {:else}
   <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
     <path d="M13 6h15l8 8v28H13a3 3 0 0 1-3-3V9a3 3 0 0 1 3-3Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>

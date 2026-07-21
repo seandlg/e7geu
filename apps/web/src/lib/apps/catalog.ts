@@ -9,7 +9,8 @@ export type AppIcon =
   | 'cv'
   | 'image'
   | 'cafe'
-  | 'calendar';
+  | 'calendar'
+  | 'cards';
 
 export type ToolboxApp = {
   name: string;
@@ -21,6 +22,14 @@ export type ToolboxApp = {
 };
 
 export const toolboxApps: readonly ToolboxApp[] = [
+  {
+    name: 'Arcana',
+    description: 'Bid, bluff, and take tricks with friends over an encrypted private table.',
+    href: '/apps/arcana',
+    icon: 'cards',
+    accent: '#fbbf24',
+    capability: 'Online party game',
+  },
   {
     name: 'Holiday Calendar',
     description: 'Compare school breaks and public holidays across countries and regions.',
