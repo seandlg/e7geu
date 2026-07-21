@@ -22,9 +22,9 @@ export type ToolboxApp = {
 
 export const toolboxApps: readonly ToolboxApp[] = [
   {
-    name: 'Germany Calendar',
-    description: 'Compare school breaks and public holidays across German states.',
-    href: '/apps/germany-calendar',
+    name: 'Holiday Calendar',
+    description: 'Compare school breaks and public holidays across countries and regions.',
+    href: '/apps/holiday-calendar',
     icon: 'calendar',
     accent: '#2dd4bf',
     capability: 'Calendar',
