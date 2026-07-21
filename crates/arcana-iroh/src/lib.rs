@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::{Arc, Mutex}, time::Duration};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use anyhow::{Context, Result};
 use iroh::{
@@ -6,7 +9,12 @@ use iroh::{
     endpoint::Connection,
     protocol::{AcceptError, ProtocolHandler, Router},
 };
-use n0_future::{Stream, StreamExt, boxed::BoxStream, task};
+use n0_future::{
+    Stream, StreamExt,
+    boxed::BoxStream,
+    task,
+    time::{Duration, timeout},
+};
 use serde::Serialize;
 use tokio::sync::{broadcast, oneshot};
 use tokio_stream::wrappers::BroadcastStream;
@@ -35,7 +43,10 @@ impl ArcanaProtocol {
     async fn handle(self, connection: Connection) -> Result<(), AcceptError> {
         let remote = connection.remote_id();
         let (mut send, mut recv) = connection.accept_bi().await?;
-        let bytes = recv.read_to_end(MAX_MESSAGE_BYTES).await.map_err(accept_err)?;
+        let bytes = recv
+            .read_to_end(MAX_MESSAGE_BYTES)
+            .await
+            .map_err(accept_err)?;
         let payload = String::from_utf8(bytes).map_err(accept_err)?;
         let request_id = {
             let mut next = self.next_id.lock().expect("request counter poisoned");
@@ -43,18 +54,26 @@ impl ArcanaProtocol {
             *next
         };
         let (response_tx, response_rx) = oneshot::channel();
-        self.pending.lock().expect("pending requests poisoned").insert(request_id, response_tx);
-        self.events.send(IncomingRequest {
-            request_id,
-            endpoint_id: remote.to_string(),
-            payload,
-        }).ok();
-        let response = tokio::time::timeout(Duration::from_secs(30), response_rx)
+        self.pending
+            .lock()
+            .expect("pending requests poisoned")
+            .insert(request_id, response_tx);
+        self.events
+            .send(IncomingRequest {
+                request_id,
+                endpoint_id: remote.to_string(),
+                payload,
+            })
+            .ok();
+        let response = timeout(Duration::from_secs(30), response_rx)
             .await
             .map_err(accept_err)?
             .map_err(accept_err)?;
-        send.write_all(response.as_bytes()).await.map_err(accept_err)?;
+        send.write_all(response.as_bytes())
+            .await
+            .map_err(accept_err)?;
         send.finish()?;
+        connection.closed().await;
         Ok(())
     }
 }
@@ -86,7 +105,9 @@ impl ArcanaNode {
             pending: Arc::new(Mutex::new(HashMap::new())),
             next_id: Arc::new(Mutex::new(0)),
         };
-        let router = Router::builder(endpoint).accept(ALPN, protocol.clone()).spawn();
+        let router = Router::builder(endpoint)
+            .accept(ALPN, protocol.clone())
+            .spawn();
         Ok(Self { router, protocol })
     }
 
@@ -102,15 +123,22 @@ impl ArcanaNode {
     }
 
     pub fn respond(&self, request_id: u64, response: String) -> Result<(), JsError> {
-        let sender = self.protocol.pending.lock().expect("pending requests poisoned")
+        let sender = self
+            .protocol
+            .pending
+            .lock()
+            .expect("pending requests poisoned")
             .remove(&request_id)
             .context("request is no longer waiting")
             .map_err(to_js_err)?;
-        sender.send(response).map_err(|_| JsError::new("request disconnected"))
+        sender
+            .send(response)
+            .map_err(|_| JsError::new("request disconnected"))
     }
 
     pub async fn request(&self, endpoint_id: String, payload: String) -> Result<String, JsError> {
-        let endpoint_id: EndpointId = endpoint_id.parse()
+        let endpoint_id: EndpointId = endpoint_id
+            .parse()
             .context("invalid host endpoint ID")
             .map_err(to_js_err)?;
         let endpoint = self.router.endpoint().clone();
@@ -120,15 +148,21 @@ impl ArcanaNode {
             send.write_all(payload.as_bytes()).await?;
             send.finish()?;
             let response = recv.read_to_end(MAX_MESSAGE_BYTES).await?;
-            Result::<String>::Ok(String::from_utf8(response)?)
-        }).await.map_err(to_js_err)?.map_err(to_js_err)
+            let response = String::from_utf8(response)?;
+            connection.close(0u8.into(), b"done");
+            Result::<String>::Ok(response)
+        })
+        .await
+        .map_err(to_js_err)?
+        .map_err(to_js_err)
     }
 }
 
 fn into_js_stream<T: Serialize>(stream: impl Stream<Item = T> + 'static) -> JsReadableStream {
     ReadableStream::from_stream(
         stream.map(|event| Ok(serde_wasm_bindgen::to_value(&event).expect("serializable event"))),
-    ).into_raw()
+    )
+    .into_raw()
 }
 
 fn to_js_err(error: impl Into<anyhow::Error>) -> JsError {

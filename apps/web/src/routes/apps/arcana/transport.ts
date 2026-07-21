@@ -2,11 +2,11 @@ import type { RoomRequest, RoomResponse } from './room';
 
 type IncomingRequest = { requestId: number; endpointId: string; payload: string };
 
-type WasmNode = {
+export type WasmNode = {
   endpoint_id(): string;
   events(): ReadableStream<IncomingRequest>;
   request(endpointId: string, payload: string): Promise<string>;
-  respond(requestId: number, response: string): void;
+  respond(requestId: bigint, response: string): void;
 };
 
 type WasmModule = {
@@ -26,6 +26,10 @@ export async function createTransport(): Promise<ArcanaTransport> {
   const wasm = (await import(/* @vite-ignore */ modulePath)) as WasmModule;
   await wasm.default();
   const node = await wasm.ArcanaNode.spawn();
+  return createTransportFromNode(node);
+}
+
+export function createTransportFromNode(node: WasmNode): ArcanaTransport {
   return {
     endpointId: node.endpoint_id(),
     requests: node.events(),
@@ -33,7 +37,7 @@ export async function createTransport(): Promise<ArcanaTransport> {
       return parseResponse(await node.request(hostId, JSON.stringify(request)));
     },
     respond(requestId, response) {
-      node.respond(requestId, JSON.stringify(response));
+      node.respond(BigInt(requestId), JSON.stringify(response));
     },
   };
 }
