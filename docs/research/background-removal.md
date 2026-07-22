@@ -151,8 +151,9 @@ The implemented network boundary is deliberately narrower:
   construct the AI worker or request a model or runtime.
 - Clicking the explicit consent button loads the lazy background-removal worker
   and the 4.4 MiB same-origin `/ai/u2netp/onnx/model.onnx`.
-- The same click permits the roughly 13 MiB same-origin ONNX WASM runtime plus
-  its small JavaScript loader from `/ai/runtime/`.
+- The same click permits the roughly 13 MiB same-origin ONNX WASM runtime from
+  `/ai/runtime/`. Chromium also requests its roughly 24 KiB JavaScript loader;
+  Firefox uses the loader already bundled into the consent-gated worker.
 - Remote models are disabled. There are no Hugging Face, CDN, analytics, or API
   requests, and `/ai/` is excluded from the PWA app-shell precache.
 

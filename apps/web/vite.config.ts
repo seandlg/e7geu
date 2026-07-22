@@ -5,6 +5,6 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [UnoCSS(), sveltekit()],
   resolve: {
-    conditions: ['onnxruntime-web-use-extern-wasm'],
+    conditions: ['onnxruntime-web-use-extern-wasm', 'module', 'browser', 'development|production'],
   },
 });

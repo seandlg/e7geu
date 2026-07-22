@@ -6,6 +6,8 @@ node_modules
 .svelte-kit
 build
 coverage
+playwright-report
+test-results
 crates/*/target
 
 # Environment and editor files

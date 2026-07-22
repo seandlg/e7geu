@@ -42,6 +42,9 @@ Vite+ owns Node, pnpm, dependencies, tasks, Vite, Vitest, linting, and formattin
 - Build/preview: `vp run build`, `vp run preview`
 - Inspect runtime: `vp env current`, `vp env doctor`
 
+Browser E2E tests use the pinned Playwright browsers from `nix develop` and run
+the real background-removal model in Chromium and Firefox: `just e2e`.
+
 Node 24+ can execute `.ts` scripts only when their TypeScript syntax is erasable. Node does not type-check them or honor `tsconfig` path aliases. Use explicit `.ts` imports and `import type`; browser code still goes through SvelteKit/Vite.
 
 ## Git history

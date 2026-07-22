@@ -7,9 +7,12 @@
     "dev": "vp run --filter @e7g/web dev",
     "build": "vp run --filter @e7g/web build",
     "preview": "vp run --filter @e7g/web preview",
+    "serve:e2e": "vp run --filter @e7g/web build && vp run --filter @e7g/web preview -- --host 127.0.0.1 --port 4173",
+    "test:e2e": "playwright test",
     "typecheck": "vp exec --filter @e7g/web -- svelte-kit sync && vp exec --filter @e7g/web -- svelte-check --tsconfig ./tsconfig.json"
   },
   "devDependencies": {
+    "@playwright/test": "1.57.0",
     "vite-plus": "^0.2.5"
   },
   "devEngines": {
