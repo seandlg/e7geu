@@ -8,6 +8,7 @@ export type AppIcon =
   | 'break'
   | 'cv'
   | 'image'
+  | 'cutout'
   | 'cafe'
   | 'calendar'
   | 'cards';
@@ -61,6 +62,14 @@ export const toolboxApps: readonly ToolboxApp[] = [
     icon: 'image',
     accent: '#c084fc',
     capability: 'Images',
+  },
+  {
+    name: 'Background Remover',
+    description: 'Remove an image background privately with optional on-device AI.',
+    href: '/apps/background-remover',
+    icon: 'cutout',
+    accent: '#4ade80',
+    capability: 'Optional AI download',
   },
   {
     name: 'QR scanner',

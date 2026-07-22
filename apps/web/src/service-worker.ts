@@ -4,7 +4,8 @@ import { build, files, version } from '$service-worker';
 
 const worker = self as unknown as ServiceWorkerGlobalScope;
 const cacheName = `e7g-${version}`;
-const precache = [...build, ...files];
+const aiAssetPrefix = '/ai/';
+const precache = [...build, ...files].filter((path) => !path.startsWith(aiAssetPrefix));
 
 worker.addEventListener('install', (event) => {
   event.waitUntil(caches.open(cacheName).then((cache) => cache.addAll(precache)));
@@ -16,16 +17,22 @@ worker.addEventListener('activate', (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((key) => key !== cacheName).map((key) => caches.delete(key))),
+        Promise.all(
+          keys
+            .filter((key) => key.startsWith('e7g-') && key !== cacheName)
+            .map((key) => caches.delete(key)),
+        ),
       )
       .then(() => worker.clients.claim()),
   );
 });
 
 worker.addEventListener('fetch', (event) => {
+  const requestUrl = new URL(event.request.url);
   if (
     event.request.method !== 'GET' ||
-    new URL(event.request.url).origin !== worker.location.origin
+    requestUrl.origin !== worker.location.origin ||
+    requestUrl.pathname.startsWith(aiAssetPrefix)
   ) {
     return;
   }

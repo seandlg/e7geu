@@ -51,6 +51,11 @@
     <path d="m10 35 9-9 6 6 5-5 8 8" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M36 13v8m-4-4h8" stroke="currentColor" stroke-width="2.7" stroke-linecap="round"/>
   </svg>
+{:else if icon === 'cutout'}
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
+    <path d="M10 12h8M10 12v8M38 12h-8M38 12v8M10 36h8M10 36v-8M38 36h-8M38 36v-8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+    <path d="M27 13c-6 0-10 4.5-10 10.5 0 2.8 1.2 5.4 3.1 7.2L18 36h12l-2.1-5.3a10 10 0 0 0 3.1-7.2C31 17.5 30 13 27 13Z" fill="currentColor" fill-opacity=".16" stroke="currentColor" stroke-width="2.7" stroke-linejoin="round"/>
+  </svg>
 {:else if icon === 'cafe'}
   <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
     <path d="M10 16h25v13a11 11 0 0 1-11 11h-3a11 11 0 0 1-11-11V16Z" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"/>
