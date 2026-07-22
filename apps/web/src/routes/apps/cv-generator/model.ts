@@ -1,6 +1,7 @@
 export type PaperSize = 'a4' | 'letter';
 export type CvTemplate = 'classic' | 'modern';
 export type CvDensity = 'relaxed' | 'balanced' | 'compact';
+export type CvLanguage = 'en' | 'de';
 
 export type CvLink = { id: string; label: string; url: string };
 export type Experience = {
@@ -45,6 +46,7 @@ export type CvDocument = {
   skills: string[];
   projects: Project[];
   settings: {
+    language: CvLanguage;
     paper: PaperSize;
     template: CvTemplate;
     density: CvDensity;
@@ -87,6 +89,7 @@ export function createBlankCv(): CvDocument {
     skills: [],
     projects: [],
     settings: {
+      language: 'en',
       paper: 'a4',
       template: 'classic',
       density: 'balanced',
@@ -160,6 +163,7 @@ export function createExampleCv(): CvDocument {
       },
     ],
     settings: {
+      language: 'en',
       paper: 'a4',
       template: 'classic',
       density: 'balanced',
@@ -169,15 +173,31 @@ export function createExampleCv(): CvDocument {
 }
 
 export function buildBlocks(document: CvDocument): CvBlock[] {
+  const headings =
+    document.settings.language === 'de'
+      ? {
+          summary: 'Profil',
+          experience: 'Berufserfahrung',
+          education: 'Ausbildung',
+          skills: 'Kenntnisse',
+          projects: 'Projekte',
+        }
+      : {
+          summary: 'Profile',
+          experience: 'Experience',
+          education: 'Education',
+          skills: 'Skills',
+          projects: 'Projects',
+        };
   const blocks: CvBlock[] = [{ id: 'identity', type: 'identity' }];
   if (document.basics.summary.trim()) {
-    blocks.push({ id: 'summary', type: 'summary', heading: 'Profile' });
+    blocks.push({ id: 'summary', type: 'summary', heading: headings.summary });
   }
   document.experience.forEach((item, index) => {
     blocks.push({
       id: `experience-${item.id}`,
       type: 'experience',
-      heading: index === 0 ? 'Experience' : undefined,
+      heading: index === 0 ? headings.experience : undefined,
       item,
     });
   });
@@ -185,18 +205,18 @@ export function buildBlocks(document: CvDocument): CvBlock[] {
     blocks.push({
       id: `education-${item.id}`,
       type: 'education',
-      heading: index === 0 ? 'Education' : undefined,
+      heading: index === 0 ? headings.education : undefined,
       item,
     });
   });
   if (document.skills.some((skill) => skill.trim())) {
-    blocks.push({ id: 'skills', type: 'skills', heading: 'Skills' });
+    blocks.push({ id: 'skills', type: 'skills', heading: headings.skills });
   }
   document.projects.forEach((item, index) => {
     blocks.push({
       id: `project-${item.id}`,
       type: 'project',
-      heading: index === 0 ? 'Projects' : undefined,
+      heading: index === 0 ? headings.projects : undefined,
       item,
     });
   });
@@ -252,6 +272,7 @@ export function parseCvFile(value: string): CvDocument {
       description: text(item.description),
     })),
     settings: {
+      language: parsed.settings.language === 'de' ? 'de' : 'en',
       paper: parsed.settings.paper === 'letter' ? 'letter' : 'a4',
       template: parsed.settings.template === 'modern' ? 'modern' : 'classic',
       density:

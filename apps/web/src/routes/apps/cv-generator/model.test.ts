@@ -14,6 +14,38 @@ describe('CV model', () => {
     ]);
   });
 
+  it('builds German headings when German is selected', () => {
+    const document = createBlankCv();
+    document.settings.language = 'de';
+    document.basics.summary = 'Ein kurzes Profil.';
+    document.experience.push({
+      id: 'role-1',
+      role: '',
+      company: '',
+      location: '',
+      start: '',
+      end: '',
+      bullets: [],
+    });
+    document.education.push({
+      id: 'education-1',
+      qualification: '',
+      institution: '',
+      location: '',
+      start: '',
+      end: '',
+      detail: '',
+    });
+    document.skills = ['TypeScript'];
+    document.projects.push({ id: 'project-1', name: '', link: '', description: '' });
+
+    expect(
+      buildBlocks(document)
+        .map((block) => ('heading' in block ? block.heading : undefined))
+        .filter(Boolean),
+    ).toEqual(['Profil', 'Berufserfahrung', 'Ausbildung', 'Kenntnisse', 'Projekte']);
+  });
+
   it('fills optional collections when reading a version one file', () => {
     const file = JSON.stringify({
       version: 1,
@@ -21,7 +53,21 @@ describe('CV model', () => {
       basics: { name: 'Ada' },
       settings: { paper: 'a4' },
     });
-    expect(parseCvFile(file)).toMatchObject({ title: 'CV', basics: { name: 'Ada' }, projects: [] });
+    expect(parseCvFile(file)).toMatchObject({
+      title: 'CV',
+      basics: { name: 'Ada' },
+      projects: [],
+      settings: { language: 'en' },
+    });
+  });
+
+  it('preserves German as the document language', () => {
+    const file = JSON.stringify({
+      version: 1,
+      basics: {},
+      settings: { language: 'de' },
+    });
+    expect(parseCvFile(file).settings.language).toBe('de');
   });
 
   it('normalizes malformed optional fields instead of exposing them to the renderer', () => {

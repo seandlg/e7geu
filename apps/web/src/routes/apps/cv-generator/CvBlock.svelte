@@ -18,13 +18,19 @@
     return [start.trim(), end.trim()].filter(Boolean).join(' – ');
   }
 
+  const fallback = $derived(
+    cv.settings.language === 'de'
+      ? { name: 'Ihr Name', role: 'Position', qualification: 'Abschluss', project: 'Projekt' }
+      : { name: 'Your name', role: 'Role', qualification: 'Qualification', project: 'Project' },
+  );
+
   const projectHref = $derived(block.type === 'project' ? webHref(block.item.link) : undefined);
 </script>
 
 {#if block.type === 'identity'}
   <header class="identity">
     <div>
-      <h1>{cv.basics.name || 'Your name'}</h1>
+      <h1>{cv.basics.name || fallback.name}</h1>
       {#if cv.basics.headline}<p class="headline">{cv.basics.headline}</p>{/if}
     </div>
     <address>
@@ -46,7 +52,7 @@
   <section>
     {#if block.heading}<h2>{block.heading}</h2>{/if}
     <div class="entry-heading">
-      <div><h3>{block.item.role || 'Role'}</h3><p>{block.item.company}</p></div>
+      <div><h3>{block.item.role || fallback.role}</h3><p>{block.item.company}</p></div>
       <div class="meta"><span>{dateRange(block.item.start, block.item.end)}</span><span>{block.item.location}</span></div>
     </div>
     {#if block.item.bullets.some((bullet) => bullet.trim())}
@@ -57,7 +63,7 @@
   <section>
     {#if block.heading}<h2>{block.heading}</h2>{/if}
     <div class="entry-heading">
-      <div><h3>{block.item.qualification || 'Qualification'}</h3><p>{block.item.institution}</p></div>
+      <div><h3>{block.item.qualification || fallback.qualification}</h3><p>{block.item.institution}</p></div>
       <div class="meta"><span>{dateRange(block.item.start, block.item.end)}</span><span>{block.item.location}</span></div>
     </div>
     {#if block.item.detail}<p class="prose detail">{block.item.detail}</p>{/if}
@@ -71,7 +77,7 @@
   <section>
     {#if block.heading}<h2>{block.heading}</h2>{/if}
     <div class="project-title">
-      <h3>{block.item.name || 'Project'}</h3>
+      <h3>{block.item.name || fallback.project}</h3>
       {#if projectHref}<a href={projectHref}>{block.item.link}</a>{/if}
     </div>
     {#if block.item.description}<p class="prose detail">{block.item.description}</p>{/if}

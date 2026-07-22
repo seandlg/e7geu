@@ -43,6 +43,7 @@
   <details open>
     <summary><span>Design & page</span><small>Template, paper and appearance</small></summary>
     <div class="section-body grid-two">
+      <label>CV language<select value={cv.settings.language} onchange={(event) => edit((draft) => (draft.settings.language = value(event) as CvDocument['settings']['language']))}><option value="en">English</option><option value="de">German</option></select></label>
       <label>Template<select value={cv.settings.template} onchange={(event) => edit((draft) => (draft.settings.template = value(event) as CvDocument['settings']['template']))}><option value="classic">Classic</option><option value="modern">Modern</option></select></label>
       <label>Paper<select value={cv.settings.paper} onchange={(event) => edit((draft) => (draft.settings.paper = value(event) as CvDocument['settings']['paper']))}><option value="a4">A4</option><option value="letter">US Letter</option></select></label>
       <label>Density<select value={cv.settings.density} onchange={(event) => edit((draft) => (draft.settings.density = value(event) as CvDocument['settings']['density']))}><option value="relaxed">Relaxed</option><option value="balanced">Balanced</option><option value="compact">Compact</option></select></label>

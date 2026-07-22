@@ -29,8 +29,9 @@
   class:overflow
   data-template={cv.settings.template}
   data-density={cv.settings.density}
+  lang={cv.settings.language}
   style={`--paper-width:${dimensions.width};--paper-height:${dimensions.height};--paper-padding:${dimensions.padding};--accent:${cv.settings.accent}`}
-  aria-label={pageNumber ? `CV page ${pageNumber}` : undefined}
+  aria-label={pageNumber ? (cv.settings.language === 'de' ? `Lebenslauf, Seite ${pageNumber}` : `CV page ${pageNumber}`) : undefined}
 >
   <div class="page-content">
     {#each blocks as block (block.id)}
