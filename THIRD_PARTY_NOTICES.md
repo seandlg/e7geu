@@ -12,10 +12,9 @@ Arcana's networking bridge uses `iroh` and its transitive Rust dependencies. Iro
 
 The Background Remover uses these runtime libraries and model assets:
 
-- `@huggingface/transformers`, Apache-2.0 License
 - `onnxruntime-web`, MIT License
-- U²-NetP model and configuration, Apache-2.0 License
+- U²-NetP model, Apache-2.0 License
 
 The U²-NetP files are pinned from [`BritishWerewolf/U-2-Netp`](https://huggingface.co/BritishWerewolf/U-2-Netp/tree/7112208dbac3a3642496c8d54e2f0f9bb3dc1dc8). The distributed ONNX model has SHA-256 `309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8`. Its Apache-2.0 license text is shipped alongside the model. The architecture originates from [xuebinqin/U-2-Net](https://github.com/xuebinqin/U-2-Net).
 
-The same-origin WebAssembly runtime is pinned from `onnxruntime-web@1.26.0-dev.20260416-b7804b056c`. The Asyncify module used by most browsers has SHA-256 `e0c0c6d3e73d43b8a249972f8358f845b08cc16fec3c80efafdf8bed40366786`; the Safari module has SHA-256 `f4f290847a4df02d0b93cdbf39b4b0e71acefbe80573e7e6b9342a7abd7b290a`.
+The same-origin WebAssembly runtime is pinned from `onnxruntime-web@1.27.0`. The distributed WASM module has SHA-256 `d1ab1b94b16a65b29d710d0b587b29e7bed336827577623913479b8afe8113e6`.

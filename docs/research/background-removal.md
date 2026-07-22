@@ -52,6 +52,12 @@ fallback if the product is explicitly limited to portraits. ([BiRefNet repositor
 [MODNet license scope](https://github.com/ZHKKKe/MODNet#license),
 [web-ready MODNet files](https://huggingface.co/Xenova/modnet/tree/main/onnx))
 
+**Implementation correction:** the chosen U²-NetP repository advertises a
+Transformers.js snippet, but Transformers.js 4.2 rejects its `u2net` model type
+before creating an ONNX session. For this specific tiny model, direct
+`onnxruntime-web` is both compatible and simpler: the app owns the fixed 320²
+preprocessing and alpha-mask conversion without a general model registry.
+
 ## Model comparison
 
 | Model                            | Generality and quality position                                                                                                                                                                                                                                   | Weight/download facts                                                                                                                                                       | License assessment                                                                                                                                                                                    | Browser fit                                                                                                                                                                                                                                                                                                                                                                            |
@@ -92,28 +98,21 @@ Use a lazily imported, client-only module with a dedicated module Worker:
 1. Decode and orient the selected image to an `ImageBitmap`.
 2. Transfer a resized inference copy to the worker. Never infer at the original
    12–48 MP camera resolution; use the model's processor/input size.
-3. Create a Transformers.js background-removal pipeline with
-   `device: 'webgpu'`. If adapter/session creation or first inference fails,
-   dispose it and recreate with WASM. Testing only `navigator.gpu` is
-   insufficient because a model can contain operators that work in WASM but not
-   the WebGPU execution provider. ([Transformers.js WebGPU warning](https://huggingface.co/docs/transformers.js/guides/webgpu),
-   [ORT execution-provider configuration](https://onnxruntime.ai/docs/tutorials/web/env-flags-and-session-options.html))
+3. For U²-NetP, create a direct ONNX Runtime Web session with the universal WASM
+   execution provider. Feed the fixed `input.1` tensor and request only the
+   composite foreground output `1959`. ([ORT execution-provider configuration](https://onnxruntime.ai/docs/tutorials/web/env-flags-and-session-options.html))
 4. Resize the predicted single-channel mask to original dimensions, write it to
    the original canvas alpha channel, and export PNG. Hugging Face's official
    example implements exactly this flow for MODNet. ([example source](https://github.com/huggingface/transformers.js-examples/blob/main/remove-background-webgpu/src/App.jsx))
 5. Serialize jobs and return a `Blob`; cancel queued work and dispose the model,
    tensors, `ImageBitmap`s, object URLs, and canvases on route teardown.
 
-Transformers.js is preferable to raw `onnxruntime-web` initially because it
-owns model-specific resize/normalize/tensor layout, alpha-mask conversion,
-dtype file selection, progress, and browser caching. Direct ORT is MIT and is a
-reasonable escape hatch if BiRefNet/BEN2 cannot be represented by a standard
-processor or profiling proves the wrapper too costly. ORT documents WebGPU,
-WASM, WebGL, and WebNN providers, recommends WASM for lightweight/universal
-CPU execution, and warns that GPU providers cover only subsets of ONNX
-operators. ([ORT web overview](https://onnxruntime.ai/docs/tutorials/web/),
-[ORT license](https://github.com/microsoft/onnxruntime/blob/main/LICENSE),
-[Transformers.js environment/cache API](https://huggingface.co/docs/transformers.js/main/api/env))
+Direct ORT is the appropriate seam for U²-NetP because its preprocessing is
+small and fixed while the generic Transformers.js model registry does not
+support the architecture. ORT documents WebGPU, WASM, WebGL, and WebNN
+providers, recommends WASM for lightweight/universal CPU execution, and warns
+that GPU providers cover only subsets of ONNX operators. ([ORT web overview](https://onnxruntime.ai/docs/tutorials/web/),
+[ORT license](https://github.com/microsoft/onnxruntime/blob/main/LICENSE))
 
 WebGPU is now broadly available across current Chromium, Safari, and desktop
 Firefox implementations, but support is still uneven on Linux and mobile
@@ -133,11 +132,8 @@ flags](https://onnxruntime.ai/docs/tutorials/web/env-flags-and-session-options.h
 ### Model delivery, caching, and offline behavior
 
 Self-host immutable, version-pinned model and runtime assets rather than relying
-on a third-party CDN. Transformers.js supports a local model path, disabling
-remote models, Cache API-backed browser caching, progress callbacks, and a model
-registry that can report required files and bytes. ([custom local usage](https://github.com/huggingface/transformers.js#custom-usage),
-[Transformers.js releases](https://github.com/huggingface/transformers.js/releases),
-[environment/cache API](https://huggingface.co/docs/transformers.js/main/api/env))
+on a third-party CDN. Fetch the model explicitly after consent so the app owns
+progress reporting and passes the resulting bytes directly to the ONNX session.
 
 There is a repo-specific trap: `apps/web/src/service-worker.ts` precaches every
 SvelteKit `build` and `files` entry with `cache.addAll`. Placing a 42–223 MB model
@@ -145,7 +141,7 @@ under `static` would therefore force **every visitor** to download it during
 service-worker installation, even if they never open the mini-app. Before
 shipping, exclude model/runtime assets from the app-shell precache and fetch
 them on first use into one deliberate runtime cache. Avoid having both the
-service worker and Transformers.js cache duplicate copies. The normal UI states
+service worker and the browser HTTP cache duplicate copies. The normal UI states
 must include “model not downloaded,” download progress and size, offline before
 first download, cache eviction, and retry.
 
@@ -153,13 +149,10 @@ The implemented network boundary is deliberately narrower:
 
 - Opening the route loads only the ordinary same-origin page assets. It does not
   construct the AI worker or request a model or runtime.
-- Clicking the explicit consent button loads the lazy background-removal worker,
-  then same-origin `/ai/u2netp/config.json`,
-  `/ai/u2netp/preprocessor_config.json`, and the 4.4 MiB
-  `/ai/u2netp/onnx/model.onnx`.
-- The same click permits one same-origin ONNX runtime variant: the roughly 23 MiB
-  Asyncify WASM module in most browsers, or the roughly 13 MiB non-Asyncify
-  module in Safari, plus its small JavaScript loader from `/ai/runtime/`.
+- Clicking the explicit consent button loads the lazy background-removal worker
+  and the 4.4 MiB same-origin `/ai/u2netp/onnx/model.onnx`.
+- The same click permits the roughly 13 MiB same-origin ONNX WASM runtime plus
+  its small JavaScript loader from `/ai/runtime/`.
 - Remote models are disabled. There are no Hugging Face, CDN, analytics, or API
   requests, and `/ai/` is excluded from the PWA app-shell precache.
 

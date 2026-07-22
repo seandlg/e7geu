@@ -180,7 +180,7 @@
             Download {modelDownloadSize} AI model
           </button>
           <p class="mb-0 mt-3 text-xs leading-5 text-slate-500">
-            A local runtime is also loaded once and cached: about 23 MiB in most browsers, or 13 MiB in Safari.
+            A roughly 13 MiB local runtime is also loaded once and cached for later use.
           </p>
         {:else if modelState === 'downloading'}
           <p class="m-0 text-xs font-750 uppercase tracking-[0.16em] text-green-300">Preparing AI</p>
