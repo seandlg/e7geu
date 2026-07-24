@@ -8,7 +8,7 @@ The QR scanner uses these runtime libraries:
 
 The ZBar WebAssembly work remains a replaceable, separately distributed library. Its source and license information are available from [undecaf/zbar-wasm](https://github.com/undecaf/zbar-wasm). The local package patch changes only the module import location so the browser loads the installed package rather than a CDN copy.
 
-Arcana's networking bridge uses `iroh` and its transitive Rust dependencies. Iroh is distributed under the MIT or Apache-2.0 licenses. Its source and license information are available from [n0-computer/iroh](https://github.com/n0-computer/iroh). The browser bridge is based on Iroh's dual-licensed browser examples and is shipped as a separately generated WebAssembly module.
+Arcana and Collaboration networking bridges use `iroh` and its transitive Rust dependencies. Iroh is distributed under the MIT or Apache-2.0 licenses. Its source and license information are available from [n0-computer/iroh](https://github.com/n0-computer/iroh). The browser bridges are based on Iroh's dual-licensed browser examples and are shipped as separately generated WebAssembly modules.
 
 The Background Remover uses these runtime libraries and model assets:
 

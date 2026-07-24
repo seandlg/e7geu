@@ -11,6 +11,7 @@ export type AppIcon =
   | 'cutout'
   | 'cafe'
   | 'calendar'
+  | 'chat'
   | 'cards';
 
 export type ToolboxApp = {
@@ -23,6 +24,14 @@ export type ToolboxApp = {
 };
 
 export const toolboxApps: readonly ToolboxApp[] = [
+  {
+    name: 'Collaboration',
+    description: 'Open a private room for encrypted chat and peer-owned file sharing.',
+    href: '/apps/collaboration',
+    icon: 'chat',
+    accent: '#67e8f9',
+    capability: 'Online room',
+  },
   {
     name: 'Arcana',
     description: 'Bid, bluff, and take tricks with friends over an encrypted private table.',
