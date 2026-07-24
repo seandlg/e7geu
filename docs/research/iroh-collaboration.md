@@ -11,7 +11,8 @@ A small, browser-only collaboration room is feasible with the same Rust-to-Wasm
 pattern already used by Arcana:
 
 1. one iroh `Endpoint` per open app instance;
-2. one `Router` exposing `iroh-gossip` for room events and `iroh-blobs` for files;
+2. one `Router` exposing `iroh-gossip` for room events and a narrow live-stream
+   protocol for files;
 3. one random room `TopicId`, plus one creator endpoint in a shareable join ticket;
 4. a TypeScript/Svelte UI consuming a narrow `wasm-bindgen` wrapper.
 
@@ -118,29 +119,31 @@ create_room(display_name) -> join_ticket
 join_room(ticket, display_name)
 events() -> stream<RoomEvent>
 send_chat(text)
-offer_file(bytes, name, media_type) -> FileOffer
-download_file(offer) -> stream<DownloadProgress>
+offer_file(id, name, media_type, size) -> FileOffer
+request_file(provider, offer) -> stream<bytes>
+respond_file(request, file_stream)
 leave()
 ```
 
 Internally it owns one endpoint, one router, one gossip instance/topic, and one
-in-memory blob store. A join ticket should carry at least a random room/topic ID and
-one or more bootstrap endpoint tickets. Room messages are signed structured data,
-not HTML:
+application-specific file ALPN. A join ticket carries a random room/topic ID and
+one or more bootstrap endpoint IDs. Room messages are signed structured data, not
+HTML:
 
 ```text
 Presence      { participant, displayName, generation }
 Chat          { id, sender, sentAt, text }
-FileOffered   { id, sender, name, size, mediaType, hash, providers }
-FileAvailable { fileId, provider }
+FileOffered   { id, sender, name, size, mediaType }
 ```
 
-For the smallest useful MVP, keep chat and files ephemeral. Store only the local
-Endpoint secret, display name, and optional local transcript in IndexedDB. A
-participant announces a file offer over gossip; each interested peer pulls the
-content from the announced provider through blobs. Once downloaded, a peer may
-announce itself as another provider if the browser blob store supports serving that
-copy.
+The implemented MVP keeps chat and files ephemeral. JavaScript retains the original
+browser `File` object without reading its contents. A participant announces only
+metadata over gossip. When a peer requests that file, the provider reads
+`File.stream()` into a bounded two-chunk queue and sends 64 KiB chunks over an
+authenticated iroh stream. The receiver applies backpressure and hands the stream
+to either a writable file handle or a transient service-worker download response.
+No complete copy is held in JavaScript, Wasm, or an application store. A transfer
+therefore requires both browser tabs to remain online until it completes.
 
 The invitation is a bearer capability, not an account. Use a cryptographically
 random room ID and validate that every application message is signed by its claimed
@@ -151,11 +154,11 @@ but it does not supply application-level room authorization automatically.
 
 ## What 2, 3, and 4 participants look like
 
-| People | Gossip/chat                                                                                                                                                                                                                | File transfer                                                                                                       |
-| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| 2      | Creator is the bootstrap; joiner connects and both subscribe to one topic.                                                                                                                                                 | Receiver pulls once from sender.                                                                                    |
-| 3      | Third peer needs any live member as bootstrap; gossip discovers/maintains the room overlay and broadcasts once at the API level.                                                                                           | One sender normally serves two recipient downloads; a completed recipient can become another source if implemented. |
-| 4      | Same topic and ticket model. Default gossip allows up to five neighbor connections per peer, so four is comfortably inside its intended small-room shape; application code must not rely on a particular overlay topology. | One sender normally serves three recipient downloads, possibly distributed among providers.                         |
+| People | Gossip/chat                                                                                                                                                                                                                | File transfer                                                               |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| 2      | Creator is the bootstrap; joiner connects and both subscribe to one topic.                                                                                                                                                 | Receiver pulls once from sender.                                            |
+| 3      | Third peer needs any live member as bootstrap; gossip discovers/maintains the room overlay and broadcasts once at the API level.                                                                                           | One sender serves two independent live streams if both recipients download. |
+| 4      | Same topic and ticket model. Default gossip allows up to five neighbor connections per peer, so four is comfortably inside its intended small-room shape; application code must not rely on a particular overlay topology. | One sender serves up to three independent live streams.                     |
 
 All iroh connections in that table are relay-carried when both endpoints are browser
 pages. Gossip prevents application code from manually broadcasting chat to every
@@ -163,11 +166,11 @@ peer, but it does not make file bytes a single-copy multicast.
 
 ## Scope recommendation
 
-1. **Phase 1:** ephemeral room, presence, chat, and blob file offers/downloads.
+1. **Phase 1:** ephemeral room, presence, chat, and bounded-memory live file streams.
 2. **Phase 2:** persist local identity and recent transcript in IndexedDB if room
    continuity across reloads becomes important.
-3. **Phase 3:** add multiple file providers or a persistent provider only if files
-   must survive the original sender leaving.
+3. **Phase 3:** add resumable ranges only if interrupted large transfers become a
+   recurring problem.
 
 This keeps the product stateless and reuses the existing Arcana deployment pattern,
 while keeping the product focused on chat and peer-owned files.

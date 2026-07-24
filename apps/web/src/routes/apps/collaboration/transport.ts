@@ -1,12 +1,18 @@
-export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 export const MAX_CHAT_BYTES = 4_000;
+const FILE_CHUNK_BYTES = 64 * 1024;
 
 export type FileOffer = {
   id: string;
   name: string;
   mediaType: string;
   size: number;
-  ticket: string;
+};
+
+export type FileRequest = {
+  requestId: number;
+  roomId: string;
+  fileId: string;
+  requester: string;
 };
 
 export type RoomEvent =
@@ -26,10 +32,17 @@ export type RoomEvent =
 export type WasmRoom = {
   id(): string;
   receiver(): ReadableStream<RoomEvent>;
+  file_requests(): ReadableStream<FileRequest>;
   ticket(): string;
   send_chat(text: string): Promise<void>;
-  offer_file(data: Uint8Array, name: string, mediaType: string): Promise<unknown>;
-  download_file(ticket: string): Promise<Uint8Array>;
+  offer_file(id: string, name: string, mediaType: string, size: bigint): Promise<unknown>;
+  request_file(
+    provider: string,
+    fileId: string,
+    expectedSize: bigint,
+  ): Promise<ReadableStream<Uint8Array>>;
+  respond_file(requestId: bigint, source: ReadableStream<Uint8Array>, size: bigint): Promise<void>;
+  reject_file(requestId: bigint, message: string): Promise<void>;
   free?(): void;
 };
 
@@ -53,7 +66,7 @@ export type CollaborationSession = {
   inviteToken(): string;
   sendChat(text: string): Promise<string>;
   offerFile(file: File): Promise<FileOffer>;
-  downloadFile(offer: FileOffer): Promise<Blob>;
+  downloadFile(provider: string, offer: FileOffer): Promise<ReadableStream<Uint8Array>>;
   close(): Promise<void>;
 };
 
@@ -88,6 +101,9 @@ async function createNode(): Promise<WasmNode> {
 
 export function createSessionFromWasm(node: WasmNode, room: WasmRoom): CollaborationSession {
   let closed = false;
+  const offeredFiles = new Map<string, File>();
+  const requestReader = room.file_requests().getReader();
+  void answerFileRequests(room, requestReader, offeredFiles);
   return {
     endpointId: node.endpoint_id(),
     roomId: room.id(),
@@ -100,29 +116,79 @@ export function createSessionFromWasm(node: WasmNode, room: WasmRoom): Collabora
     },
     async offerFile(file) {
       validateFile(file);
-      const raw = await room.offer_file(
-        new Uint8Array(await file.arrayBuffer()),
-        file.name,
-        file.type || 'application/octet-stream',
-      );
-      return parseFileOffer(raw);
-    },
-    async downloadFile(offer) {
-      validateOffer(offer);
-      const bytes = await room.download_file(offer.ticket);
-      if (bytes.byteLength !== offer.size) {
-        throw new Error('The downloaded file does not match the advertised size.');
+      const id = crypto.randomUUID();
+      offeredFiles.set(id, file);
+      try {
+        return parseFileOffer(
+          await room.offer_file(
+            id,
+            file.name,
+            file.type || 'application/octet-stream',
+            BigInt(file.size),
+          ),
+        );
+      } catch (error) {
+        offeredFiles.delete(id);
+        throw error;
       }
-      return new Blob([bytes.slice()], { type: offer.mediaType });
+    },
+    async downloadFile(provider, offer) {
+      validateOffer(offer);
+      if (!provider.trim()) throw new Error('This file provider is invalid.');
+      return room.request_file(provider, offer.id, BigInt(offer.size));
     },
     async close() {
       if (closed) return;
       closed = true;
+      await requestReader.cancel().catch(() => undefined);
+      offeredFiles.clear();
       await node.shutdown();
       room.free?.();
       node.free?.();
     },
   };
+}
+
+async function answerFileRequests(
+  room: WasmRoom,
+  reader: ReadableStreamDefaultReader<FileRequest>,
+  offeredFiles: Map<string, File>,
+): Promise<void> {
+  try {
+    while (true) {
+      const result = await reader.read();
+      if (result.done) return;
+      const request = result.value;
+      const file = offeredFiles.get(request.fileId);
+      if (!file) {
+        await room
+          .reject_file(BigInt(request.requestId), 'The sender no longer has this file open.')
+          .catch(() => undefined);
+        continue;
+      }
+      await room
+        .respond_file(BigInt(request.requestId), streamFile(file), BigInt(file.size))
+        .catch(() => undefined);
+    }
+  } catch {
+    // Closing a room cancels this reader. Individual transfer failures are reported to requesters.
+  }
+}
+
+export function streamFile(file: File): ReadableStream<Uint8Array> {
+  let offset = 0;
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      if (offset >= file.size) {
+        controller.close();
+        return;
+      }
+      const end = Math.min(offset + FILE_CHUNK_BYTES, file.size);
+      const bytes = new Uint8Array(await file.slice(offset, end).arrayBuffer());
+      offset = end;
+      controller.enqueue(bytes);
+    },
+  });
 }
 
 export function cleanName(value: string): string {
@@ -143,7 +209,9 @@ export function cleanChat(value: string): string {
 export function validateFile(file: Pick<File, 'name' | 'size'>): void {
   if (!file.name.trim()) throw new Error('Choose a named file.');
   if (file.size === 0) throw new Error('The selected file is empty.');
-  if (file.size > MAX_FILE_BYTES) throw new Error('Files are limited to 25 MiB.');
+  if (!Number.isSafeInteger(file.size) || file.size < 0) {
+    throw new Error('The selected file size is invalid.');
+  }
 }
 
 function parseFileOffer(value: unknown): FileOffer {
@@ -153,7 +221,6 @@ function parseFileOffer(value: unknown): FileOffer {
     name: value.name,
     mediaType: value.mediaType,
     size: value.size,
-    ticket: value.ticket,
   };
   validateOffer(offer);
   return offer;
@@ -166,9 +233,8 @@ function validateOffer(value: unknown): asserts value is FileOffer {
     typeof value.name !== 'string' ||
     typeof value.mediaType !== 'string' ||
     typeof value.size !== 'number' ||
-    typeof value.ticket !== 'string' ||
     value.size <= 0 ||
-    value.size > MAX_FILE_BYTES
+    !Number.isSafeInteger(value.size)
   ) {
     throw new Error('This file offer is invalid.');
   }

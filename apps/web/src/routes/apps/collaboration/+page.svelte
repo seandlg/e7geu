@@ -2,7 +2,6 @@
   import { onMount, tick } from 'svelte';
   import AppHeader from '$lib/ui/AppHeader.svelte';
   import {
-    MAX_FILE_BYTES,
     cleanName,
     createRoom,
     formatBytes,
@@ -11,6 +10,7 @@
     type FileOffer,
     type RoomEvent,
   } from './transport';
+  import { prepareDownload } from './download';
 
   type Screen = 'setup' | 'connecting' | 'room';
   type Peer = { id: string; name: string; lastSeen: number; self?: boolean };
@@ -48,7 +48,7 @@
   let notice = $state('');
   let busy = $state(false);
   let copied = $state(false);
-  let downloading = $state(new Set<string>());
+  let downloading = $state(new Map<string, number>());
   let now = $state(Date.now());
   let clock: ReturnType<typeof setInterval> | null = null;
   let messageSequence = 0;
@@ -254,23 +254,20 @@
 
   async function downloadFile(shared: SharedFile): Promise<void> {
     if (!session || downloading.has(shared.key)) return;
-    downloading = new Set(downloading).add(shared.key);
     error = '';
     try {
-      const blob = await session.downloadFile(shared.offer);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = shared.offer.name;
-      link.hidden = true;
-      document.body.append(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1_000);
+      const target = await prepareDownload(shared.offer);
+      downloading = new Map(downloading).set(shared.key, 0);
+      const stream = await session.downloadFile(shared.from, shared.offer);
+      await target.save(stream, (received) => {
+        downloading = new Map(downloading).set(shared.key, received);
+      });
+      notice = `${shared.offer.name} downloaded.`;
     } catch (cause) {
+      if (cause instanceof DOMException && cause.name === 'AbortError') return;
       fail(cause);
     } finally {
-      const next = new Set(downloading);
+      const next = new Map(downloading);
       next.delete(shared.key);
       downloading = next;
     }
@@ -499,7 +496,7 @@
           <div class="border-b border-white/7 p-5">
             <p class="m-0 text-xs font-800 tracking-[.15em] text-cyan-300 uppercase">Share a file</p>
             <p class="mb-0 mt-2 text-xs leading-5 text-slate-500">
-              Up to 25 MiB. Keep your tab open until everyone finishes downloading.
+              Files stream directly between browsers. Keep your tab open until everyone finishes downloading.
             </p>
             <input
               class="mt-4 block w-full text-xs text-slate-400 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-white/9 file:px-3 file:py-2 file:font-700 file:text-white"
@@ -514,7 +511,7 @@
             {/if}
             <button
               class="focus-ring mt-3 w-full cursor-pointer rounded-xl border-0 bg-white/10 px-4 py-3 text-sm font-800 text-white hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-35"
-              disabled={!selectedFile || selectedFile.size > MAX_FILE_BYTES || busy}
+              disabled={!selectedFile || busy}
               onclick={shareSelectedFile}>Share with room</button
             >
           </div>
@@ -541,7 +538,9 @@
                         class="focus-ring mt-2.5 w-full cursor-pointer rounded-lg border border-white/9 bg-white/7 px-3 py-2 text-xs font-750 text-white disabled:cursor-wait disabled:opacity-45"
                         disabled={downloading.has(shared.key)}
                         onclick={() => downloadFile(shared)}
-                        >{downloading.has(shared.key) ? 'Downloading…' : 'Download'}</button
+                        >{downloading.has(shared.key)
+                          ? `Downloading ${Math.floor(((downloading.get(shared.key) ?? 0) / shared.offer.size) * 100)}%`
+                          : 'Download'}</button
                       >
                     {:else}
                       <p class="mb-0 mt-2 text-[.68rem] font-700 text-emerald-300/70">You are providing this file</p>

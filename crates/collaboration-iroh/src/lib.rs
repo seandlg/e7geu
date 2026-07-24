@@ -1,18 +1,14 @@
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeSet, HashMap},
     sync::{Arc, Mutex},
 };
 
 use anyhow::{Context, Result, ensure};
 use bytes::Bytes;
 use iroh::{
-    Endpoint, EndpointId, PublicKey, SecretKey, Signature, address_lookup::MemoryLookup,
-    protocol::Router,
-};
-use iroh_blobs::{
-    BlobsProtocol,
-    api::{Store, downloader::Downloader},
-    ticket::BlobTicket,
+    Endpoint, EndpointId, PublicKey, SecretKey, Signature,
+    endpoint::Connection,
+    protocol::{AcceptError, ProtocolHandler, Router},
 };
 use iroh_gossip::{
     api::{Event as GossipEvent, GossipSender},
@@ -22,19 +18,26 @@ use iroh_gossip::{
 use iroh_tickets::Ticket;
 use js_sys::Uint8Array;
 use n0_future::{
-    StreamExt,
+    Stream, StreamExt, stream,
     task::{self, AbortOnDropHandle},
-    time::{Duration, SystemTime},
+    time::{Duration, SystemTime, timeout},
 };
 use serde::{Deserialize, Serialize};
-use tokio::sync::{Mutex as AsyncMutex, Notify};
-use wasm_bindgen::{JsError, JsValue, prelude::wasm_bindgen};
+use tokio::sync::{Mutex as AsyncMutex, Notify, broadcast, mpsc};
+use tokio_stream::wrappers::BroadcastStream;
+use wasm_bindgen::{JsCast, JsError, JsValue, prelude::wasm_bindgen};
 use wasm_streams::{ReadableStream, readable::sys::ReadableStream as JsReadableStream};
 
+const FILE_ALPN: &[u8] = b"e7g.eu/collaboration/file/1";
+const FILE_CHUNK_BYTES: usize = 64 * 1024;
+const MAX_FILE_REQUEST_BYTES: usize = 512;
+const MAX_REJECTION_BYTES: usize = 512;
+const RESPONSE_TIMEOUT: Duration = Duration::from_secs(30);
+const WRITE_TIMEOUT: Duration = Duration::from_secs(90);
 const PRESENCE_INTERVAL: Duration = Duration::from_secs(5);
 const MAX_CHAT_BYTES: usize = 4_000;
-const MAX_FILE_BYTES: usize = 25 * 1024 * 1024;
 const MAX_NAME_BYTES: usize = 80;
+const MAX_FILE_ID_BYTES: usize = 80;
 const MAX_FILE_NAME_BYTES: usize = 180;
 const MAX_MEDIA_TYPE_BYTES: usize = 120;
 
@@ -80,7 +83,6 @@ struct FileOffer {
     name: String,
     media_type: String,
     size: u64,
-    ticket: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -230,41 +232,179 @@ impl RoomSender {
     }
 }
 
-#[derive(Clone, Debug)]
-struct RoomFiles {
-    address_lookup: MemoryLookup,
-    endpoint: Endpoint,
-    blobs: Store,
-    downloader: Downloader,
+#[derive(Debug, Deserialize, Serialize)]
+struct TransferRequest {
+    room_id: TopicId,
+    file_id: String,
+    expected_size: u64,
 }
 
-impl RoomFiles {
-    async fn import(&self, data: Bytes) -> Result<BlobTicket> {
-        let tag = self.blobs.add_bytes(data).await?;
-        self.endpoint.online().await;
-        Ok(BlobTicket::new(self.endpoint.addr(), tag.hash, tag.format))
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct IncomingFileRequest {
+    request_id: u64,
+    room_id: String,
+    file_id: String,
+    requester: String,
+}
+
+#[derive(Debug)]
+enum ResponsePart {
+    Chunk(Bytes),
+    End,
+    Failed(String),
+}
+
+#[derive(Debug)]
+struct PendingResponse {
+    expected_size: u64,
+    sender: mpsc::Sender<ResponsePart>,
+}
+
+#[derive(Clone, Debug)]
+struct FileProtocol {
+    events: broadcast::Sender<IncomingFileRequest>,
+    pending: Arc<Mutex<HashMap<u64, PendingResponse>>>,
+    next_id: Arc<Mutex<u64>>,
+}
+
+impl FileProtocol {
+    fn new() -> Self {
+        let (events, _) = broadcast::channel(32);
+        Self {
+            events,
+            pending: Arc::new(Mutex::new(HashMap::new())),
+            next_id: Arc::new(Mutex::new(0)),
+        }
     }
 
-    async fn download(&self, ticket: BlobTicket) -> Result<Bytes> {
-        self.address_lookup.add_endpoint_info(ticket.addr().clone());
-        self.downloader
-            .download(ticket.hash_and_format(), [ticket.addr().id])
-            .await?;
-        let bytes = self.blobs.get_bytes(ticket.hash()).await?;
-        ensure!(
-            bytes.len() <= MAX_FILE_BYTES,
-            "Downloaded file exceeds the 25 MiB limit"
-        );
-        Ok(bytes)
+    async fn handle(self, connection: Connection) -> Result<(), AcceptError> {
+        let requester = connection.remote_id();
+        let (mut send, mut recv) = connection.accept_bi().await?;
+        let bytes = recv
+            .read_to_end(MAX_FILE_REQUEST_BYTES)
+            .await
+            .map_err(accept_err)?;
+        let request: TransferRequest = postcard::from_bytes(&bytes).map_err(accept_err)?;
+        validate_file_id(&request.file_id).map_err(accept_err)?;
+        if request.expected_size == 0 {
+            return Err(accept_err("empty files are not transferable"));
+        }
+
+        let request_id = {
+            let mut next = self.next_id.lock().expect("request counter poisoned");
+            *next = next.wrapping_add(1);
+            *next
+        };
+        let (response_tx, mut response_rx) = mpsc::channel(2);
+        self.pending
+            .lock()
+            .expect("pending file responses poisoned")
+            .insert(
+                request_id,
+                PendingResponse {
+                    expected_size: request.expected_size,
+                    sender: response_tx,
+                },
+            );
+        self.events
+            .send(IncomingFileRequest {
+                request_id,
+                room_id: request.room_id.to_string(),
+                file_id: request.file_id,
+                requester: requester.to_string(),
+            })
+            .ok();
+
+        let first = timeout(RESPONSE_TIMEOUT, response_rx.recv()).await;
+        self.pending
+            .lock()
+            .expect("pending file responses poisoned")
+            .remove(&request_id);
+        let first = first.map_err(accept_err)?;
+        let result = match first {
+            Some(ResponsePart::Chunk(bytes)) => {
+                send.write_all(&[0]).await.map_err(accept_err)?;
+                transfer_chunks(&mut send, &mut response_rx, bytes, request.expected_size).await
+            }
+            Some(ResponsePart::Failed(message)) => reject_transfer(&mut send, &message).await,
+            Some(ResponsePart::End) | None => {
+                reject_transfer(&mut send, "The file is no longer available").await
+            }
+        };
+        result.map_err(accept_err)
     }
+
+    fn take_pending(&self, request_id: u64) -> Result<PendingResponse> {
+        self.pending
+            .lock()
+            .expect("pending file responses poisoned")
+            .remove(&request_id)
+            .context("file request is no longer waiting")
+    }
+}
+
+impl ProtocolHandler for FileProtocol {
+    async fn accept(&self, connection: Connection) -> Result<(), AcceptError> {
+        self.clone().handle(connection).await
+    }
+}
+
+async fn transfer_chunks(
+    send: &mut iroh::endpoint::SendStream,
+    response_rx: &mut mpsc::Receiver<ResponsePart>,
+    first: Bytes,
+    expected_size: u64,
+) -> Result<()> {
+    let mut transferred = 0u64;
+    let mut next = Some(ResponsePart::Chunk(first));
+    loop {
+        let part = match next.take() {
+            Some(part) => part,
+            None => response_rx
+                .recv()
+                .await
+                .context("sender stopped providing the file")?,
+        };
+        match part {
+            ResponsePart::Chunk(bytes) => {
+                transferred = transferred
+                    .checked_add(bytes.len() as u64)
+                    .context("file size overflow")?;
+                ensure!(
+                    transferred <= expected_size,
+                    "sender exceeded the advertised size"
+                );
+                timeout(WRITE_TIMEOUT, send.write_all(&bytes)).await??;
+            }
+            ResponsePart::End => {
+                ensure!(
+                    transferred == expected_size,
+                    "sender stopped before the advertised size"
+                );
+                send.finish()?;
+                send.stopped().await?;
+                return Ok(());
+            }
+            ResponsePart::Failed(message) => return Err(anyhow::anyhow!(message)),
+        }
+    }
+}
+
+async fn reject_transfer(send: &mut iroh::endpoint::SendStream, message: &str) -> Result<()> {
+    let message = truncate_utf8(message, MAX_REJECTION_BYTES);
+    send.write_all(&[1]).await?;
+    send.write_all(message.as_bytes()).await?;
+    send.finish()?;
+    Ok(())
 }
 
 #[wasm_bindgen]
 pub struct CollaborationNode {
     router: Router,
     gossip: Gossip,
+    file_protocol: FileProtocol,
     secret_key: SecretKey,
-    files: RoomFiles,
 }
 
 #[wasm_bindgen]
@@ -272,33 +412,23 @@ impl CollaborationNode {
     pub async fn spawn() -> Result<Self, JsError> {
         console_error_panic_hook::set_once();
         let secret_key = SecretKey::generate();
-        let address_lookup = MemoryLookup::default();
         let endpoint = Endpoint::builder(iroh::endpoint::presets::N0)
             .secret_key(secret_key.clone())
-            .address_lookup(address_lookup.clone())
-            .alpns(vec![GOSSIP_ALPN.to_vec(), iroh_blobs::ALPN.to_vec()])
+            .alpns(vec![GOSSIP_ALPN.to_vec(), FILE_ALPN.to_vec()])
             .bind()
             .await
             .map_err(to_js_err)?;
-        let memory_store = iroh_blobs::store::mem::MemStore::default();
-        let blobs = memory_store.as_ref().clone();
-        let downloader = Downloader::new(&memory_store, &endpoint);
         let gossip = Gossip::builder().spawn(endpoint.clone());
-        let files = RoomFiles {
-            address_lookup,
-            endpoint: endpoint.clone(),
-            blobs,
-            downloader,
-        };
+        let file_protocol = FileProtocol::new();
         let router = Router::builder(endpoint)
             .accept(GOSSIP_ALPN, gossip.clone())
-            .accept(iroh_blobs::ALPN, BlobsProtocol::new(&memory_store, None))
+            .accept(FILE_ALPN, file_protocol.clone())
             .spawn();
         Ok(Self {
             router,
             gossip,
+            file_protocol,
             secret_key,
-            files,
         })
     }
 
@@ -332,6 +462,7 @@ impl CollaborationNode {
         nickname: String,
     ) -> Result<CollaborationRoom, JsError> {
         let nickname = clean_nickname(nickname).map_err(to_js_err)?;
+        self.router.endpoint().online().await;
         let topic = self
             .gossip
             .subscribe(ticket.topic_id, ticket.bootstrap.iter().copied().collect())
@@ -400,10 +531,7 @@ impl CollaborationNode {
             }
             event
         });
-        let receiver = ReadableStream::from_stream(stream.map(|event| {
-            Ok(serde_wasm_bindgen::to_value(&event).expect("room event is serializable"))
-        }))
-        .into_raw();
+        let receiver = into_js_stream(stream);
 
         let me = self.router.endpoint().id();
         ticket.bootstrap.insert(me);
@@ -414,7 +542,8 @@ impl CollaborationNode {
             neighbors,
             receiver,
             sender: room_sender,
-            files: self.files.clone(),
+            endpoint: self.router.endpoint().clone(),
+            file_protocol: self.file_protocol.clone(),
         })
     }
 }
@@ -427,7 +556,8 @@ pub struct CollaborationRoom {
     neighbors: Arc<Mutex<BTreeSet<EndpointId>>>,
     receiver: JsReadableStream,
     sender: RoomSender,
-    files: RoomFiles,
+    endpoint: Endpoint,
+    file_protocol: FileProtocol,
 }
 
 #[wasm_bindgen]
@@ -438,6 +568,18 @@ impl CollaborationRoom {
 
     pub fn receiver(&self) -> JsReadableStream {
         self.receiver.clone()
+    }
+
+    pub fn file_requests(&self) -> JsReadableStream {
+        let room_id = self.topic_id.to_string();
+        let stream =
+            BroadcastStream::new(self.file_protocol.events.subscribe()).filter_map(move |event| {
+                match event {
+                    Ok(event) if event.room_id == room_id => Some(event),
+                    _ => None,
+                }
+            });
+        into_js_stream(stream)
     }
 
     pub fn ticket(&self) -> String {
@@ -463,27 +605,22 @@ impl CollaborationRoom {
 
     pub async fn offer_file(
         &self,
-        data: Uint8Array,
+        id: String,
         name: String,
         media_type: String,
+        size: u64,
     ) -> Result<JsValue, JsError> {
+        let id = validate_file_id(&id).map_err(to_js_err)?.to_owned();
         let name = clean_field(name, MAX_FILE_NAME_BYTES, "File name").map_err(to_js_err)?;
         let media_type = clean_media_type(media_type).map_err(to_js_err)?;
-        let data = uint8array_to_bytes(&data);
-        if data.is_empty() {
+        if size == 0 {
             return Err(JsError::new("The selected file is empty"));
         }
-        if data.len() > MAX_FILE_BYTES {
-            return Err(JsError::new("Files are limited to 25 MiB"));
-        }
-        let size = data.len() as u64;
-        let ticket = self.files.import(data).await.map_err(to_js_err)?;
         let offer = FileOffer {
-            id: ticket.hash().to_string(),
+            id,
             name,
             media_type,
             size,
-            ticket: ticket.to_string(),
         };
         self.sender
             .offer_file(offer.clone())
@@ -492,11 +629,170 @@ impl CollaborationRoom {
         serde_wasm_bindgen::to_value(&offer).map_err(to_js_err)
     }
 
-    pub async fn download_file(&self, ticket: String) -> Result<Uint8Array, JsError> {
-        let ticket: BlobTicket = ticket.parse().map_err(to_js_err)?;
-        let bytes = self.files.download(ticket).await.map_err(to_js_err)?;
-        Ok(bytes_to_uint8array(&bytes))
+    pub async fn request_file(
+        &self,
+        provider: String,
+        file_id: String,
+        expected_size: u64,
+    ) -> Result<JsReadableStream, JsError> {
+        let provider: EndpointId = provider
+            .parse()
+            .context("invalid file provider")
+            .map_err(to_js_err)?;
+        if provider == self.me {
+            return Err(JsError::new("cannot request your own file"));
+        }
+        validate_file_id(&file_id).map_err(to_js_err)?;
+        if expected_size == 0 {
+            return Err(JsError::new("file is empty"));
+        }
+        let request = postcard::to_stdvec(&TransferRequest {
+            room_id: self.topic_id,
+            file_id,
+            expected_size,
+        })
+        .map_err(to_js_err)?;
+        let connection = self
+            .endpoint
+            .connect(provider, FILE_ALPN)
+            .await
+            .map_err(to_js_err)?;
+        let (mut send, mut recv) = connection.open_bi().await.map_err(to_js_err)?;
+        send.write_all(&request).await.map_err(to_js_err)?;
+        send.finish().map_err(to_js_err)?;
+        let mut status = [0u8; 1];
+        timeout(RESPONSE_TIMEOUT, recv.read_exact(&mut status))
+            .await
+            .map_err(to_js_err)?
+            .map_err(to_js_err)?;
+        if status[0] != 0 {
+            let message = recv
+                .read_to_end(MAX_REJECTION_BYTES)
+                .await
+                .map_err(to_js_err)?;
+            let message = String::from_utf8_lossy(&message);
+            return Err(JsError::new(if message.is_empty() {
+                "The file is no longer available"
+            } else {
+                &message
+            }));
+        }
+
+        let stream = stream::unfold(Some((recv, 0u64)), move |state| async move {
+            let Some((mut recv, received)) = state else {
+                return None;
+            };
+            match recv.read_chunk(FILE_CHUNK_BYTES).await {
+                Ok(Some(bytes)) => {
+                    let next_received = match received.checked_add(bytes.len() as u64) {
+                        Some(value) if value <= expected_size => value,
+                        _ => {
+                            return Some((
+                                Err(JsValue::from_str("The sender exceeded the advertised size")),
+                                None,
+                            ));
+                        }
+                    };
+                    let chunk = bytes_to_uint8array(&bytes);
+                    Some((Ok(JsValue::from(chunk)), Some((recv, next_received))))
+                }
+                Ok(None) if received == expected_size => None,
+                Ok(None) => Some((
+                    Err(JsValue::from_str(
+                        "The sender disconnected before the file was complete",
+                    )),
+                    None,
+                )),
+                Err(error) => Some((
+                    Err(JsValue::from_str(&format!("File transfer failed: {error}"))),
+                    None,
+                )),
+            }
+        });
+        Ok(ReadableStream::from_stream(stream).into_raw())
     }
+
+    pub async fn respond_file(
+        &self,
+        request_id: u64,
+        source: JsReadableStream,
+        size: u64,
+    ) -> Result<(), JsError> {
+        let pending = self
+            .file_protocol
+            .take_pending(request_id)
+            .map_err(to_js_err)?;
+        if size != pending.expected_size {
+            pending
+                .sender
+                .send(ResponsePart::Failed(
+                    "The local file no longer matches the offer".to_owned(),
+                ))
+                .await
+                .ok();
+            return Err(JsError::new("The local file no longer matches the offer"));
+        }
+        let sender = pending.sender;
+        let result = stream_browser_file(source, size, sender.clone()).await;
+        if let Err(error) = &result {
+            sender
+                .send(ResponsePart::Failed(error.to_string()))
+                .await
+                .ok();
+        }
+        result.map_err(to_js_err)
+    }
+
+    pub async fn reject_file(&self, request_id: u64, message: String) -> Result<(), JsError> {
+        let pending = self
+            .file_protocol
+            .take_pending(request_id)
+            .map_err(to_js_err)?;
+        pending
+            .sender
+            .send(ResponsePart::Failed(message))
+            .await
+            .map_err(|_| JsError::new("file requester disconnected"))
+    }
+}
+
+async fn stream_browser_file(
+    source: JsReadableStream,
+    expected_size: u64,
+    sender: mpsc::Sender<ResponsePart>,
+) -> Result<()> {
+    let mut source = ReadableStream::from_raw(source).into_stream();
+    let mut transferred = 0u64;
+    while let Some(chunk) = source.next().await {
+        let value = chunk.map_err(js_value_error)?;
+        let array = value
+            .dyn_into::<Uint8Array>()
+            .map_err(|_| anyhow::anyhow!("browser file stream returned a non-byte chunk"))?;
+        if array.length() == 0 {
+            continue;
+        }
+        let bytes = uint8array_to_bytes(&array);
+        transferred = transferred
+            .checked_add(bytes.len() as u64)
+            .context("file size overflow")?;
+        ensure!(
+            transferred <= expected_size,
+            "browser file exceeded the advertised size"
+        );
+        sender
+            .send(ResponsePart::Chunk(bytes))
+            .await
+            .context("file requester disconnected")?;
+    }
+    ensure!(
+        transferred == expected_size,
+        "browser file ended before the advertised size"
+    );
+    sender
+        .send(ResponsePart::End)
+        .await
+        .context("file requester disconnected")?;
+    Ok(())
 }
 
 fn clean_nickname(value: String) -> Result<String> {
@@ -504,16 +800,18 @@ fn clean_nickname(value: String) -> Result<String> {
 }
 
 fn validate_offer(mut offer: FileOffer) -> Result<FileOffer> {
+    offer.id = validate_file_id(&offer.id)?.to_owned();
     offer.name = clean_field(offer.name, MAX_FILE_NAME_BYTES, "File name")?;
     offer.media_type = clean_media_type(offer.media_type)?;
     ensure!(offer.size > 0, "file is empty");
-    ensure!(offer.size <= MAX_FILE_BYTES as u64, "file is too large");
-    let ticket: BlobTicket = offer.ticket.parse()?;
-    ensure!(
-        offer.id == ticket.hash().to_string(),
-        "file ID does not match its ticket"
-    );
     Ok(offer)
+}
+
+fn validate_file_id(value: &str) -> Result<&str> {
+    let value = value.trim();
+    ensure!(!value.is_empty(), "file ID is required");
+    ensure!(value.len() <= MAX_FILE_ID_BYTES, "file ID is too long");
+    Ok(value)
 }
 
 fn clean_media_type(value: String) -> Result<String> {
@@ -547,6 +845,36 @@ fn bytes_to_uint8array(bytes: &[u8]) -> Uint8Array {
     array
 }
 
+fn truncate_utf8(value: &str, max_bytes: usize) -> &str {
+    if value.len() <= max_bytes {
+        return value;
+    }
+    let mut end = max_bytes;
+    while !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    &value[..end]
+}
+
+fn into_js_stream<T: Serialize>(stream: impl Stream<Item = T> + 'static) -> JsReadableStream {
+    ReadableStream::from_stream(stream.map(|event| {
+        Ok(serde_wasm_bindgen::to_value(&event).expect("stream event is serializable"))
+    }))
+    .into_raw()
+}
+
+fn js_value_error(value: JsValue) -> anyhow::Error {
+    anyhow::anyhow!(
+        value
+            .as_string()
+            .unwrap_or_else(|| "browser stream failed".to_owned())
+    )
+}
+
 fn to_js_err(error: impl Into<anyhow::Error>) -> JsError {
     JsError::new(&error.into().to_string())
+}
+
+fn accept_err(error: impl std::fmt::Display) -> AcceptError {
+    n0_error::AnyError::from_display(error).into()
 }
