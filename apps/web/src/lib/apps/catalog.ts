@@ -14,6 +14,15 @@ export type AppIcon =
   | 'chat'
   | 'cards';
 
+export const appCategories = [
+  { id: 'create', label: 'Create & edit' },
+  { id: 'device', label: 'Use your device' },
+  { id: 'plan', label: 'Plan & discover' },
+  { id: 'connect', label: 'Play & connect' },
+] as const;
+
+export type AppCategory = (typeof appCategories)[number]['id'];
+
 export type ToolboxApp = {
   name: string;
   description: string;
@@ -21,6 +30,7 @@ export type ToolboxApp = {
   icon: AppIcon;
   accent: string;
   capability: string;
+  category: AppCategory;
 };
 
 export const toolboxApps: readonly ToolboxApp[] = [
@@ -31,6 +41,7 @@ export const toolboxApps: readonly ToolboxApp[] = [
     icon: 'chat',
     accent: '#67e8f9',
     capability: 'Online room',
+    category: 'connect',
   },
   {
     name: 'Arcana',
@@ -39,6 +50,7 @@ export const toolboxApps: readonly ToolboxApp[] = [
     icon: 'cards',
     accent: '#fbbf24',
     capability: 'Online party game',
+    category: 'connect',
   },
   {
     name: 'Holiday Calendar',
@@ -47,6 +59,7 @@ export const toolboxApps: readonly ToolboxApp[] = [
     icon: 'calendar',
     accent: '#2dd4bf',
     capability: 'Calendar',
+    category: 'plan',
   },
   {
     name: 'Berlin Work Cafés',
@@ -55,6 +68,7 @@ export const toolboxApps: readonly ToolboxApp[] = [
     icon: 'cafe',
     accent: '#fb923c',
     capability: 'Local guide',
+    category: 'plan',
   },
   {
     name: 'Darkroom Recorder',
@@ -63,6 +77,7 @@ export const toolboxApps: readonly ToolboxApp[] = [
     icon: 'record',
     accent: '#ef4444',
     capability: 'Camera + microphone',
+    category: 'device',
   },
   {
     name: 'Image Compressor',
@@ -71,6 +86,7 @@ export const toolboxApps: readonly ToolboxApp[] = [
     icon: 'image',
     accent: '#c084fc',
     capability: 'Images',
+    category: 'create',
   },
   {
     name: 'Background Remover',
@@ -79,6 +95,7 @@ export const toolboxApps: readonly ToolboxApp[] = [
     icon: 'cutout',
     accent: '#4ade80',
     capability: 'Optional AI download',
+    category: 'create',
   },
   {
     name: 'QR scanner',
@@ -87,6 +104,7 @@ export const toolboxApps: readonly ToolboxApp[] = [
     icon: 'qr',
     accent: '#38bdf8',
     capability: 'Camera',
+    category: 'device',
   },
   {
     name: 'Speedometer',
@@ -95,6 +113,7 @@ export const toolboxApps: readonly ToolboxApp[] = [
     icon: 'speed',
     accent: '#a78bfa',
     capability: 'Location',
+    category: 'device',
   },
   {
     name: 'Sound meter',
@@ -103,6 +122,7 @@ export const toolboxApps: readonly ToolboxApp[] = [
     icon: 'sound',
     accent: '#34d399',
     capability: 'Microphone',
+    category: 'device',
   },
   {
     name: 'Color inspector',
@@ -111,6 +131,7 @@ export const toolboxApps: readonly ToolboxApp[] = [
     icon: 'color',
     accent: '#fb7185',
     capability: 'Camera',
+    category: 'create',
   },
   {
     name: 'Wordguessr',
@@ -119,6 +140,7 @@ export const toolboxApps: readonly ToolboxApp[] = [
     icon: 'word',
     accent: '#fbbf24',
     capability: 'Party game',
+    category: 'connect',
   },
   {
     name: 'Break Timer',
@@ -127,6 +149,7 @@ export const toolboxApps: readonly ToolboxApp[] = [
     icon: 'break',
     accent: '#22d3ee',
     capability: 'Timer',
+    category: 'device',
   },
   {
     name: 'CV Generator',
@@ -135,5 +158,6 @@ export const toolboxApps: readonly ToolboxApp[] = [
     icon: 'cv',
     accent: '#60a5fa',
     capability: 'Documents',
+    category: 'create',
   },
 ] as const;

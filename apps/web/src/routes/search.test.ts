@@ -22,4 +22,13 @@ describe('app search', () => {
       'Color inspector',
     ]);
   });
+
+  it('matches the intent categories shown in the launcher', () => {
+    expect(searchApps(toolboxApps, 'create edit').map((app) => app.name)).toEqual([
+      'Image Compressor',
+      'Background Remover',
+      'Color inspector',
+      'CV Generator',
+    ]);
+  });
 });
